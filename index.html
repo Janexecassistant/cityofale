@@ -957,7 +957,8 @@ async function signIn() {
   const btn = document.getElementById('si-btn');
   btn.disabled=true; btn.textContent='Signing in...';
   try {
-    const { error } = await _sb.auth.signInWithPassword({ email, password: pass });
+    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Sign in timed out — please try again')), 10000));
+    const { error } = await Promise.race([_sb.auth.signInWithPassword({ email, password: pass }), timeout]);
     if (error) throw error;
     // Auth succeeded — onAuthStateChange handles the rest
     btn.disabled=false; btn.textContent='Sign In →';
@@ -1086,33 +1087,43 @@ async function updateProfile() {
 
 async function forceSyncDown() {
   if (!isConfigured || !currentUser) { loadOfflineData(); renderDash(); updateSidebar(); toast('↓ Reloaded'); return; }
-  await loadCloudData(); renderDash(); updateSidebar(); toast('✓ Reloaded from cloud');
+  try {
+    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000));
+    await Promise.race([loadCloudData(), timeout]);
+    renderDash(); updateSidebar(); toast('✓ Reloaded from cloud');
+  } catch(e) {
+    console.warn('Force sync failed:', e);
+    loadOfflineData(); renderDash(); updateSidebar(); toast('⚠ Cloud sync timed out — showing local data');
+  }
 }
 
 // ─── Cloud data sync ─────────────────────────────────────────
+function queryWithTimeout(queryPromise, ms = 6000) {
+  return Promise.race([
+    queryPromise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('query timeout')), ms))
+  ]);
+}
+
 async function loadCloudData() {
   if (!_sb || !currentUser) return;
   setSyncDot('saving');
   try {
-    // Load private visit data (notes, visited, tags) for this user
-    const { data: visits, error: ve } = await _sb
-      .from('pub_visits').select('*').eq('user_id', currentUser.id);
-    if (ve) throw ve;
+    // Run all three queries in parallel, each with its own timeout
+    const [visitRes, scoreRes, myScoreRes] = await Promise.all([
+      queryWithTimeout(_sb.from('pub_visits').select('*').eq('user_id', currentUser.id)),
+      queryWithTimeout(_sb.from('pub_score_averages').select('*')),
+      queryWithTimeout(_sb.from('pub_scores').select('*').eq('user_id', currentUser.id))
+    ]);
 
-    // Load community-averaged scores for ALL pubs (publicly readable)
-    const { data: scores, error: se } = await _sb
-      .from('pub_score_averages').select('*');
-    if (se) throw se;
-
-    // Load THIS user's own scores so their sliders show their own ratings
-    const { data: myScores, error: me } = await _sb
-      .from('pub_scores').select('*').eq('user_id', currentUser.id);
-    if (me) throw me;
+    if (visitRes.error) throw visitRes.error;
+    if (scoreRes.error) throw scoreRes.error;
+    if (myScoreRes.error) throw myScoreRes.error;
 
     resetPubs();
-    if (visits)   visits.forEach(d   => applyVisitRow(d));
-    if (myScores) myScores.forEach(d => applyMyScores(d));
-    if (scores)   scores.forEach(d   => applyCommunityScores(d));
+    if (visitRes.data)   visitRes.data.forEach(d   => applyVisitRow(d));
+    if (myScoreRes.data) myScoreRes.data.forEach(d => applyMyScores(d));
+    if (scoreRes.data)   scoreRes.data.forEach(d   => applyCommunityScores(d));
     setSyncDot('online');
   } catch(e) { console.warn('Load error:', e); setSyncDot('offline'); }
 }
