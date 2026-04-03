@@ -178,6 +178,10 @@ nav{padding:10px 8px;flex:1}
 .crawl-stop:hover{border-color:var(--border2)}
 .crawl-stop.done{border-left:3px solid var(--green)}
 .stop-num{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--green),var(--yellow));color:#0a1a07;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+#crawl-map{width:100%;height:300px;border-radius:var(--rsm);margin-top:12px;border:1px solid var(--border)}
+#crawl-map .leaflet-container{background:#111a0d!important}
+.crawl-nav-btns{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.opt-btn.area-active{background:rgba(110,190,80,.2)!important;color:var(--green-light)!important;border-color:var(--green)!important}
 
 /* LEADERBOARD */
 .lb-item{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer}
@@ -493,9 +497,9 @@ textarea::placeholder{color:var(--muted)}
           </div>
 
           <div style="margin-bottom:14px">
-            <label style="display:block;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px;font-weight:700">Area</label>
+            <label style="display:block;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px;font-weight:700">Areas <span style="font-weight:400;text-transform:none;letter-spacing:0">(select multiple)</span></label>
             <div class="opt-group" id="crawl-area-group">
-              <button class="opt-btn active" data-val="" onclick="pickOpt(this,'crawl-area-group')">Any</button>
+              <button class="opt-btn active" data-val="" onclick="toggleCrawlArea(this)">Any</button>
             </div>
           </div>
 
@@ -537,6 +541,12 @@ textarea::placeholder{color:var(--muted)}
               </div>
             </div>
             <div id="crawl-list"></div>
+            <div id="crawl-map"></div>
+            <div class="crawl-nav-btns">
+              <button class="btn btn-yellow btn-sm" onclick="openCrawlNavigation('google')">📍 Navigate in Google Maps</button>
+              <button class="btn btn-ghost btn-sm" onclick="openCrawlNavigation('apple')">🗺 Apple Maps</button>
+              <button class="btn btn-ghost btn-sm" onclick="copyCrawlRoute()">📋 Copy Route</button>
+            </div>
             <div id="crawl-sum" style="margin-top:12px;padding:12px;background:var(--card);border:1px solid var(--border);border-radius:var(--rsm);font-size:12px;color:var(--text2);line-height:1.6"></div>
           </div>
         </div>
@@ -1375,8 +1385,39 @@ function buildCrawlAreas() {
   if (g.children.length <= 1) {
     getAreas().forEach(a => {
       const b=document.createElement('button'); b.className='opt-btn'; b.dataset.val=a; b.textContent=a;
-      b.onclick=function(){pickOpt(this,'crawl-area-group');}; g.appendChild(b);
+      b.onclick=function(){toggleCrawlArea(this);}; g.appendChild(b);
     });
+  }
+}
+
+let selectedCrawlAreas = [];
+
+function toggleCrawlArea(el) {
+  const val = el.dataset.val;
+  const g = document.getElementById('crawl-area-group');
+  const anyBtn = g.querySelector('[data-val=""]');
+
+  if (val === '') {
+    // Clicked "Any" — clear all selections
+    selectedCrawlAreas = [];
+    g.querySelectorAll('.opt-btn').forEach(b => { b.classList.remove('active'); b.classList.remove('area-active'); });
+    anyBtn.classList.add('active');
+    return;
+  }
+
+  // Toggle this area
+  anyBtn.classList.remove('active');
+  if (selectedCrawlAreas.includes(val)) {
+    selectedCrawlAreas = selectedCrawlAreas.filter(a => a !== val);
+    el.classList.remove('area-active');
+  } else {
+    selectedCrawlAreas.push(val);
+    el.classList.add('area-active');
+  }
+
+  // If nothing selected, reactivate "Any"
+  if (selectedCrawlAreas.length === 0) {
+    anyBtn.classList.add('active');
   }
 }
 
@@ -1393,11 +1434,11 @@ function pickTheme(el) {
 
 function generateCrawl() {
   const n = parseInt(document.getElementById('crawl-n').value);
-  const area = document.getElementById('crawl-area-group').querySelector('.opt-btn.active')?.dataset.val||'';
+  const areas = selectedCrawlAreas.length > 0 ? selectedCrawlAreas : [];
   const pri = document.getElementById('crawl-pri-group').querySelector('.opt-btn.active')?.dataset.val||'score';
 
   let pool = [...pubs];
-  if (area) pool=pool.filter(p=>p.area===area);
+  if (areas.length > 0) pool=pool.filter(p=>areas.includes(p.area));
   if (currentTheme==='ale') pool=pool.filter(p=>p.ale);
   if (currentTheme==='food') pool=pool.filter(p=>p.food);
   if (currentTheme==='historic') pool=pool.filter(p=>p.historic);
@@ -1429,11 +1470,27 @@ function generateCrawl() {
     selected.push(rem.shift());
   }
 
+  // Optimize route order: nearest-neighbour from first pub
+  selected = optimizeRoute(selected);
+
   activeCrawl = selected.map(p=>p.id);
   document.getElementById('crawl-empty').style.display='none';
   document.getElementById('crawl-result').classList.remove('hidden');
 
-  document.getElementById('crawl-list').innerHTML = selected.map((p,i)=>`
+  // Calculate walking distances between stops
+  const distances = [];
+  let totalDist = 0;
+  for (let i = 1; i < selected.length; i++) {
+    const d = dist(selected[i-1], selected[i]) * 1000; // km to meters
+    distances.push(d);
+    totalDist += d;
+  }
+
+  document.getElementById('crawl-list').innerHTML = selected.map((p,i)=>{
+    const legDist = i > 0 ? distances[i-1] : 0;
+    const walkMin = i > 0 ? Math.round(legDist / 80) : 0; // ~80m/min walking
+    return `
+    ${i > 0 ? `<div style="display:flex;align-items:center;gap:6px;padding:2px 0 2px 12px;color:var(--muted);font-size:10px"><span style="border-left:2px dashed var(--border);height:16px"></span> ${Math.round(legDist)}m · ~${walkMin} min walk</div>` : ''}
     <div class="crawl-stop${p.visited?' done':''}" onclick="openModal(${p.id})">
       <div class="stop-num">${i+1}</div>
       <div style="flex:1">
@@ -1444,17 +1501,117 @@ function generateCrawl() {
         ${avg(p)>0?`<div style="font-size:12px;color:var(--yellow-light);font-weight:700">${avg(p).toFixed(1)}</div>`:''}
         <div style="font-size:10px;color:${p.visited?'var(--green-light)':'var(--muted)'}">${p.visited?'✓ done':'unvisited'}</div>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 
+  // Draw route map
+  drawCrawlMap(selected);
+
+  const areaLabel = areas.length > 0 ? areas.join(', ') : 'All Norwich';
   const newPubs = selected.filter(p=>!p.visited).length;
-  document.getElementById('crawl-sum').innerHTML = `<strong style="color:var(--heading)">${selected.length} pubs</strong> · Area: <strong style="color:var(--green-light)">${area||'All Norwich'}</strong> · Theme: ${currentTheme} · <strong style="color:var(--yellow-light)">${newPubs} new</strong> pubs to discover 🍺`;
-  toast(`Route generated! ${selected.length} pubs ready.`);
+  const totalWalk = Math.round(totalDist);
+  const totalMin = Math.round(totalDist / 80);
+  document.getElementById('crawl-sum').innerHTML = `<strong style="color:var(--heading)">${selected.length} pubs</strong> · Area: <strong style="color:var(--green-light)">${areaLabel}</strong> · Theme: ${currentTheme} · <strong style="color:var(--yellow-light)">${newPubs} new</strong> pubs · Total walk: <strong>${totalWalk}m</strong> (~${totalMin} min) 🍺`;
+  toast(`Route generated! ${selected.length} pubs, ${totalWalk}m walk.`);
+}
+
+function optimizeRoute(stops) {
+  if (stops.length <= 2) return stops;
+  // Nearest-neighbour TSP heuristic
+  const ordered = [stops[0]];
+  const remaining = stops.slice(1);
+  while (remaining.length > 0) {
+    const last = ordered[ordered.length - 1];
+    remaining.sort((a, b) => dist(last, a) - dist(last, b));
+    ordered.push(remaining.shift());
+  }
+  return ordered;
+}
+
+let crawlMap = null, crawlMapMarkers = [], crawlRouteLine = null;
+
+function drawCrawlMap(selected) {
+  const mapEl = document.getElementById('crawl-map');
+  if (!mapEl) return;
+  mapEl.style.display = 'block';
+
+  if (crawlMap) {
+    crawlMap.remove();
+    crawlMap = null;
+  }
+
+  crawlMap = L.map('crawl-map', { zoomControl: true, scrollWheelZoom: true });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 }).addTo(crawlMap);
+
+  // Apply dark theme filter
+  mapEl.querySelectorAll('.leaflet-tile').forEach(t => { t.style.filter = 'brightness(.65) saturate(.7) hue-rotate(10deg)'; });
+
+  crawlMapMarkers = [];
+  const coords = [];
+  selected.forEach((p, i) => {
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--green),var(--yellow));color:#0a1a07;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.4)">${i + 1}</div>`,
+      iconSize: [28, 28],
+      iconAnchor: [14, 14]
+    });
+    const m = L.marker([p.lat, p.lng], { icon }).addTo(crawlMap);
+    m.bindPopup(`<strong>${i + 1}. ${p.name}</strong><br>${p.address}`);
+    crawlMapMarkers.push(m);
+    coords.push([p.lat, p.lng]);
+  });
+
+  // Draw route line
+  if (coords.length > 1) {
+    crawlRouteLine = L.polyline(coords, {
+      color: '#e8c832',
+      weight: 3,
+      opacity: 0.8,
+      dashArray: '8, 8'
+    }).addTo(crawlMap);
+  }
+
+  // Fit map to show all markers
+  if (coords.length > 0) {
+    crawlMap.fitBounds(L.latLngBounds(coords).pad(0.15));
+  }
+
+  // Re-apply tile filter after tiles load
+  crawlMap.on('tileload', function(e) { e.tile.style.filter = 'brightness(.65) saturate(.7) hue-rotate(10deg)'; });
+}
+
+function openCrawlNavigation(provider) {
+  const stops = activeCrawl.map(id => pubs.find(p => p.id === id)).filter(Boolean);
+  if (stops.length === 0) { toast('Generate a route first'); return; }
+
+  if (provider === 'google') {
+    const origin = stops[0].lat + ',' + stops[0].lng;
+    const dest = stops[stops.length - 1].lat + ',' + stops[stops.length - 1].lng;
+    const waypoints = stops.slice(1, -1).map(p => p.lat + ',' + p.lng).join('|');
+    let url = 'https://www.google.com/maps/dir/?api=1&travelmode=walking&origin=' + origin + '&destination=' + dest;
+    if (waypoints) url += '&waypoints=' + waypoints;
+    window.open(url, '_blank');
+  } else if (provider === 'apple') {
+    // Apple Maps URL scheme
+    const points = stops.map(p => p.lat + ',' + p.lng);
+    let url = 'https://maps.apple.com/?dirflg=w&saddr=' + points[0] + '&daddr=' + points.slice(1).join('+to:');
+    window.open(url, '_blank');
+  }
+}
+
+function copyCrawlRoute() {
+  const stops = activeCrawl.map(id => pubs.find(p => p.id === id)).filter(Boolean);
+  if (stops.length === 0) { toast('Generate a route first'); return; }
+  const text = 'City of Ale Pub Crawl\n' + stops.map((p, i) => (i + 1) + '. ' + p.name + ' — ' + p.address).join('\n');
+  navigator.clipboard.writeText(text).then(() => toast('Route copied!')).catch(() => toast('Copy failed'));
 }
 
 function clearCrawl() {
   activeCrawl=[];
   document.getElementById('crawl-empty').style.display='block';
   document.getElementById('crawl-result').classList.add('hidden');
+  if (crawlMap) { crawlMap.remove(); crawlMap = null; }
+  document.getElementById('crawl-map').style.display = 'none';
 }
 
 async function markCrawlDone() {
