@@ -932,6 +932,8 @@ async function signIn() {
   try {
     const { error } = await _sb.auth.signInWithPassword({ email, password: pass });
     if (error) throw error;
+    // Auth succeeded — onAuthStateChange handles the rest
+    btn.disabled=false; btn.textContent='Sign In →';
   } catch(e) {
     showAuthMsg('si-err', e.message||'Sign in failed.', true);
     btn.disabled=false; btn.textContent='Sign In →';
@@ -999,12 +1001,17 @@ if (isConfigured) {
     if (session?.user) {
       currentUser = session.user;
       const name = currentUser.user_metadata?.display_name || currentUser.email.split('@')[0];
-      try { await loadCloudData(); } catch(e) { console.warn('Cloud load failed, continuing offline:', e); }
+      // Show app immediately — don't block UI on cloud data
       document.getElementById('auth-screen').style.display='none';
       document.getElementById('app').style.display='flex';
       setUserUI(name, currentUser.email, name.slice(0,2).toUpperCase());
-      setSyncDot('online');
+      loadOfflineData();
       renderDash(); updateSidebar(); buildCrawlAreas();
+      // Load cloud data in background with timeout
+      const cloudTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000));
+      Promise.race([loadCloudData(), cloudTimeout])
+        .then(() => { setSyncDot('online'); renderDash(); updateSidebar(); })
+        .catch(e => { console.warn('Cloud sync skipped:', e); setSyncDot('offline'); });
     }
   });
   // Check existing session on load
