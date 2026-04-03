@@ -1162,9 +1162,13 @@ function saveOffline() {
 }
 
 async function savePub(pub) {
-  if (!isConfigured || !currentUser) { saveOffline(); return; }
+  // Always save locally first
+  saveOffline();
+  if (!isConfigured || !currentUser) return;
   setSyncDot('saving');
   try {
+    const timeout = ms => new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms));
+
     // Save private data (visited, notes, tags) → pub_visits
     const visitRow = {
       user_id: currentUser.id, pub_id: pub.id,
@@ -1172,8 +1176,10 @@ async function savePub(pub) {
       notes: pub.notes, tags: pub.tags,
       updated_at: new Date().toISOString()
     };
-    const { error: ve } = await _sb.from('pub_visits')
-      .upsert(visitRow, { onConflict: 'user_id,pub_id' });
+    const { error: ve } = await Promise.race([
+      _sb.from('pub_visits').upsert(visitRow, { onConflict: 'user_id,pub_id' }),
+      timeout(6000)
+    ]);
     if (ve) throw ve;
 
     // Save this user's scores → pub_scores (shared, averaged with others)
@@ -1188,13 +1194,16 @@ async function savePub(pub) {
         score_character: ms.character||0, score_overall: ms.overall||0,
         updated_at: new Date().toISOString()
       };
-      const { error: se } = await _sb.from('pub_scores')
-        .upsert(scoreRow, { onConflict: 'user_id,pub_id' });
+      const { error: se } = await Promise.race([
+        _sb.from('pub_scores').upsert(scoreRow, { onConflict: 'user_id,pub_id' }),
+        timeout(6000)
+      ]);
       if (se) throw se;
     }
 
     setSyncDot('online');
-  } catch(e) { console.warn('Save error:', e); setSyncDot('offline'); toast('⚠ Save failed'); }
+    toast('✓ Saved!');
+  } catch(e) { console.warn('Cloud save failed:', e); setSyncDot('offline'); toast('Saved locally (cloud sync unavailable)'); }
 }
 
 function resetPubs() {
@@ -1901,14 +1910,13 @@ function toggleTag(id,tag) {
 
 async function savePubData(id) {
   const p=pubs.find(x=>x.id===id);
+  if(!p) return;
   const n=document.getElementById('notes-'+id);
   if(n) p.notes=n.value;
-  await savePub(pub);
-  const btn=event.target;
-  btn.textContent='✓ Saved!';
-  btn.style.background='var(--green)';
-  btn.style.color='#0a1a07';
-  setTimeout(()=>{btn.textContent='💾 Save';btn.style.background='';btn.style.color='';},1600);
+  await savePub(p);
+  const btn=document.querySelector('#modal-body .btn-primary');
+  if(btn){btn.textContent='✓ Saved!';btn.style.background='var(--green)';btn.style.color='#0a1a07';
+  setTimeout(()=>{btn.textContent='💾 Save';btn.style.background='';btn.style.color='';},1600);}
   renderDash(); updateSidebar();
 }
 
