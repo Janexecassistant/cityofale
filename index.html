@@ -1862,20 +1862,22 @@ async function submitSuggestion(type, pubId) {
     } catch(e) { console.warn('DB save failed:', e); }
   }
 
-  // Also send email notification
-  const subject = encodeURIComponent(type === 'new_pub' ? 'City of Ale — New Pub Suggestion: ' + name : 'City of Ale — Edit Suggestion: ' + name);
-  const body = encodeURIComponent(
-    (type === 'new_pub' ? 'NEW PUB SUGGESTION' : 'EDIT SUGGESTION') + '\n\n' +
-    'Pub: ' + name + '\n' +
-    'Address: ' + (address || 'Not provided') + '\n' +
-    'Area: ' + (area || 'Not provided') + '\n' +
-    'Details: ' + (details || 'None') + '\n\n' +
-    'Submitted by: ' + (currentUser?.email || 'Anonymous') + '\n' +
-    'Date: ' + new Date().toLocaleString()
-  );
-  window.open('mailto:mybuddyjonathan@gmail.com?subject=' + subject + '&body=' + body, '_blank');
+  // Only send email notification for edit suggestions
+  if (type === 'edit') {
+    const subject = encodeURIComponent('City of Ale — Edit Suggestion: ' + name);
+    const body = encodeURIComponent(
+      'EDIT SUGGESTION\n\n' +
+      'Pub: ' + name + '\n' +
+      'Address: ' + (address || 'Not provided') + '\n' +
+      'Area: ' + (area || 'Not provided') + '\n' +
+      'Details: ' + (details || 'None') + '\n\n' +
+      'Submitted by: ' + (currentUser?.email || 'Anonymous') + '\n' +
+      'Date: ' + new Date().toLocaleString()
+    );
+    window.open('mailto:mybuddyjonathan@gmail.com?subject=' + subject + '&body=' + body, '_blank');
+  }
 
-  toast(type === 'new_pub' ? 'Pub suggestion submitted!' : 'Edit suggestion submitted!');
+  toast(type === 'new_pub' ? 'New pub submitted — thanks!' : 'Edit suggestion submitted!');
   closeSuggestModal();
 }
 
