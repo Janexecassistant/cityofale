@@ -143,6 +143,22 @@ nav{padding:10px 8px;flex:1}
 .modal-title{font-family:'Bitter',serif;font-size:21px;font-weight:700;color:var(--heading);padding-right:36px;line-height:1.2}
 .modal-sub{font-size:12px;color:var(--muted);margin-top:3px;margin-bottom:18px}
 
+/* PHOTO GALLERY */
+.photo-grid{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.photo-thumb{width:80px;height:80px;border-radius:8px;object-fit:cover;cursor:pointer;border:1px solid var(--border);transition:transform .15s}
+.photo-thumb:hover{transform:scale(1.05)}
+.photo-upload-btn{width:80px;height:80px;border-radius:8px;border:2px dashed var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);font-size:22px;background:transparent;transition:border-color .2s}
+.photo-upload-btn:hover{border-color:var(--green)}
+.photo-upload-btn span{font-size:9px;margin-top:2px}
+.photo-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:3000;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.photo-lightbox img{max-width:90vw;max-height:90vh;border-radius:8px}
+/* SUGGEST/ADD FORMS */
+.suggest-form label{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;font-weight:700;margin-top:10px}
+.suggest-form input,.suggest-form textarea,.suggest-form select{width:100%;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text1);font-size:13px;font-family:inherit}
+.suggest-form textarea{resize:vertical;min-height:60px}
+.fab-add-pub{position:fixed;bottom:24px;right:24px;z-index:1500;background:linear-gradient(135deg,var(--green),var(--yellow));color:#0a1a07;border:none;width:50px;height:50px;border-radius:50%;font-size:24px;font-weight:800;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;transition:transform .15s}
+.fab-add-pub:hover{transform:scale(1.1)}
+
 /* SCORE INPUTS */
 .score-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
 .score-item label{display:block;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;font-weight:700}
@@ -595,6 +611,22 @@ textarea::placeholder{color:var(--muted)}
 <div class="modal-overlay hidden" id="modal-overlay" onclick="maybeClose(event)">
   <div class="modal"><button class="modal-close" onclick="closeModal()">✕</button><div id="modal-body"></div></div>
 </div>
+
+<!-- SUGGEST/ADD PUB MODAL -->
+<div class="modal-overlay hidden" id="suggest-overlay" onclick="if(event.target===this)closeSuggestModal()">
+  <div class="modal"><button class="modal-close" onclick="closeSuggestModal()">✕</button><div id="suggest-body"></div></div>
+</div>
+
+<!-- PHOTO LIGHTBOX -->
+<div class="photo-lightbox hidden" id="photo-lightbox" onclick="this.classList.add('hidden')">
+  <img id="lightbox-img" src="" alt="Pub photo">
+</div>
+
+<!-- FAB: Add a Pub -->
+<button class="fab-add-pub" onclick="openAddPubForm()" title="Suggest a new pub">+</button>
+
+<!-- Hidden file input for photo upload -->
+<input type="file" id="photo-file-input" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoUpload(event)">
 
 <script>
 // ═══════════════════════════════════════════════════════════════
@@ -1446,6 +1478,13 @@ function openModal(id) {
       <button class="btn btn-primary" onclick="savePubData(${id})">💾 Save</button>
       <button class="btn btn-ghost" onclick="closeModal()">Close</button>
       <button class="btn btn-success btn-sm" onclick="toggleVisited(${id})">${p.visited?'↩ Mark Unvisited':'✓ Mark Visited'}</button>
+      <button class="btn btn-ghost btn-sm" onclick="openSuggestEditForm(${id})" style="margin-left:auto">✏️ Suggest Edit</button>
+    </div>
+
+    <div class="div"></div>
+    <div class="sec-title" style="margin-bottom:8px;font-size:14px">📸 Photos</div>
+    <div class="photo-grid" id="photo-grid-${id}">
+      <button class="photo-upload-btn" onclick="startPhotoUpload(${id})">📷<span>Add</span></button>
     </div>
 
     ${sc>0?`
@@ -1460,10 +1499,176 @@ function openModal(id) {
   `;
 
   document.getElementById('modal-overlay').classList.remove('hidden');
+  loadPubPhotos(id);
 }
 
 function closeModal() { document.getElementById('modal-overlay').classList.add('hidden'); }
 function maybeClose(e) { if(e.target===document.getElementById('modal-overlay')) closeModal(); }
+
+// ─── Photo functions ─────────────────────────────────────────
+let _photoUploadPubId = null;
+
+async function loadPubPhotos(pubId) {
+  if (!_sb) return;
+  try {
+    const { data, error } = await _sb.from('pub_photos').select('*').eq('pub_id', pubId).order('created_at', { ascending: false });
+    if (error || !data) return;
+    const grid = document.getElementById('photo-grid-' + pubId);
+    if (!grid) return;
+    const uploadBtn = grid.querySelector('.photo-upload-btn');
+    // Remove old photo thumbs
+    grid.querySelectorAll('.photo-thumb').forEach(el => el.remove());
+    data.forEach(photo => {
+      const img = document.createElement('img');
+      img.className = 'photo-thumb';
+      img.src = photo.photo_url;
+      img.alt = photo.caption || 'Pub photo';
+      img.onclick = () => openLightbox(photo.photo_url);
+      grid.insertBefore(img, uploadBtn);
+    });
+  } catch(e) { console.warn('Load photos failed:', e); }
+}
+
+function startPhotoUpload(pubId) {
+  if (!currentUser) { toast('Sign in to upload photos'); return; }
+  _photoUploadPubId = pubId;
+  document.getElementById('photo-file-input').click();
+}
+
+async function handlePhotoUpload(event) {
+  const file = event.target.files[0];
+  if (!file || !_photoUploadPubId) return;
+  const pubId = _photoUploadPubId;
+  toast('Uploading photo...');
+  try {
+    const ext = file.name.split('.').pop();
+    const path = currentUser.id + '/' + pubId + '_' + Date.now() + '.' + ext;
+    const { error: upErr } = await _sb.storage.from('pub-photos').upload(path, file);
+    if (upErr) throw upErr;
+    const { data: urlData } = _sb.storage.from('pub-photos').getPublicUrl(path);
+    const photoUrl = urlData.publicUrl;
+    const { error: dbErr } = await _sb.from('pub_photos').insert({ pub_id: pubId, user_id: currentUser.id, photo_url: photoUrl });
+    if (dbErr) throw dbErr;
+    toast('Photo uploaded!');
+    loadPubPhotos(pubId);
+  } catch(e) {
+    console.error('Upload failed:', e);
+    toast('Upload failed: ' + (e.message||e));
+  }
+  event.target.value = '';
+}
+
+function openLightbox(url) {
+  document.getElementById('lightbox-img').src = url;
+  document.getElementById('photo-lightbox').classList.remove('hidden');
+}
+
+// ─── Suggest Edit / Add Pub functions ────────────────────────
+function closeSuggestModal() { document.getElementById('suggest-overlay').classList.add('hidden'); }
+
+function openSuggestEditForm(pubId) {
+  const p = pubs.find(x => x.id === pubId);
+  if (!p) return;
+  document.getElementById('suggest-body').innerHTML = `
+    <div class="modal-title">Suggest Edit</div>
+    <div class="modal-sub">Suggest a correction for ${p.name}</div>
+    <div class="suggest-form">
+      <label>Pub Name</label>
+      <input type="text" id="se-name" value="${p.name}">
+      <label>Address</label>
+      <input type="text" id="se-address" value="${p.address}">
+      <label>Area</label>
+      <input type="text" id="se-area" value="${p.area}">
+      <label>What needs changing?</label>
+      <textarea id="se-details" placeholder="e.g. This pub has closed, wrong address, name is incorrect..."></textarea>
+      <div style="margin-top:14px;display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="submitSuggestion('edit',${pubId})">Send Suggestion</button>
+        <button class="btn btn-ghost" onclick="closeSuggestModal()">Cancel</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('suggest-overlay').classList.remove('hidden');
+}
+
+function openAddPubForm() {
+  if (!currentUser) { toast('Sign in to suggest a pub'); return; }
+  document.getElementById('suggest-body').innerHTML = `
+    <div class="modal-title">Add a Pub</div>
+    <div class="modal-sub">Know a Norwich pub that's missing? Let us know!</div>
+    <div class="suggest-form">
+      <label>Pub Name *</label>
+      <input type="text" id="se-name" placeholder="e.g. The Red Lion">
+      <label>Address</label>
+      <input type="text" id="se-address" placeholder="e.g. 12 High Street, NR1 1AB">
+      <label>Area</label>
+      <select id="se-area">
+        <option value="">Select area...</option>
+        <option>City Centre</option>
+        <option>Cathedral Quarter</option>
+        <option>St Benedicts</option>
+        <option>Norwich Lanes</option>
+        <option>Golden Triangle</option>
+        <option>Magdalen Street</option>
+        <option>Fye Bridge</option>
+        <option>King Street</option>
+        <option>Prince of Wales Road</option>
+        <option>Earlham</option>
+        <option>Heigham</option>
+        <option>Mile Cross</option>
+        <option>Eaton</option>
+        <option>Thorpe Hamlet</option>
+        <option>New Costessey</option>
+      </select>
+      <label>Details</label>
+      <textarea id="se-details" placeholder="Tell us about this pub — does it serve real ale? Food? Is it historic?"></textarea>
+      <div style="margin-top:14px;display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="submitSuggestion('new_pub',null)">Submit Pub</button>
+        <button class="btn btn-ghost" onclick="closeSuggestModal()">Cancel</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('suggest-overlay').classList.remove('hidden');
+}
+
+async function submitSuggestion(type, pubId) {
+  const name = document.getElementById('se-name')?.value.trim();
+  const address = document.getElementById('se-address')?.value.trim();
+  const area = document.getElementById('se-area')?.value.trim();
+  const details = document.getElementById('se-details')?.value.trim();
+  if (!name) { toast('Please enter a pub name'); return; }
+
+  // Save to Supabase
+  if (_sb && currentUser) {
+    try {
+      await _sb.from('pub_suggestions').insert({
+        suggestion_type: type,
+        pub_id: pubId,
+        pub_name: name,
+        pub_address: address,
+        pub_area: area,
+        details: details,
+        submitted_by: currentUser.id,
+        submitted_email: currentUser.email
+      });
+    } catch(e) { console.warn('DB save failed:', e); }
+  }
+
+  // Also send email notification
+  const subject = encodeURIComponent(type === 'new_pub' ? 'City of Ale — New Pub Suggestion: ' + name : 'City of Ale — Edit Suggestion: ' + name);
+  const body = encodeURIComponent(
+    (type === 'new_pub' ? 'NEW PUB SUGGESTION' : 'EDIT SUGGESTION') + '\n\n' +
+    'Pub: ' + name + '\n' +
+    'Address: ' + (address || 'Not provided') + '\n' +
+    'Area: ' + (area || 'Not provided') + '\n' +
+    'Details: ' + (details || 'None') + '\n\n' +
+    'Submitted by: ' + (currentUser?.email || 'Anonymous') + '\n' +
+    'Date: ' + new Date().toLocaleString()
+  );
+  window.open('mailto:mybuddyjonathan@gmail.com?subject=' + subject + '&body=' + body, '_blank');
+
+  toast(type === 'new_pub' ? 'Pub suggestion submitted!' : 'Edit suggestion submitted!');
+  closeSuggestModal();
+}
 
 async function toggleVisited(id) {
   const p=pubs.find(x=>x.id===id);
