@@ -1,0 +1,1593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="description" content="City of Ale — track, score and crawl every pub in Norwich">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍺</text></svg>">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>City of Ale — Norwich Pub Crawl Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bitter:ital,wght@0,700;0,900;1,700&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --bg:       #0a0f08;
+  --bg2:      #111a0d;
+  --bg3:      #182012;
+  --card:     #152010;
+  --card2:    #1c2a15;
+  --border:   rgba(100,200,80,0.10);
+  --border2:  rgba(100,200,80,0.20);
+  --border3:  rgba(100,200,80,0.32);
+  --green:       #5ec44a;
+  --green-light: #8ed97f;
+  --green-dim:   rgba(94,196,74,0.13);
+  --green-glow:  rgba(94,196,74,0.18);
+  --yellow:       #e8c832;
+  --yellow-light: #f5df80;
+  --yellow-dim:   rgba(232,200,50,0.13);
+  --yellow-border:rgba(232,200,50,0.30);
+  --red:     #e05252;
+  --red-dim: rgba(224,82,82,0.12);
+  --text:    rgba(220,240,215,0.93);
+  --text2:   rgba(180,220,170,0.60);
+  --muted:   rgba(150,200,140,0.42);
+  --heading: #d8f0c8;
+  --radius:  12px;
+  --rsm:     8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;font-size:15px;line-height:1.5;min-height:100vh;overflow-x:hidden}
+.app{display:flex;height:100vh}
+
+/* SIDEBAR */
+.sidebar{width:230px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.brand{padding:22px 20px 18px;border-bottom:1px solid var(--border)}
+.brand-mark{display:flex;align-items:center;gap:11px;margin-bottom:0}
+.brand-icon{width:38px;height:38px;background:linear-gradient(135deg,var(--green),var(--yellow));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.brand-name{font-family:'Bitter',serif;font-size:15px;font-weight:700;color:var(--heading);line-height:1.2}
+.brand-sub{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-top:1px}
+nav{padding:10px 8px;flex:1}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--rsm);cursor:pointer;color:var(--text2);font-size:13px;font-weight:600;transition:all .15s;margin-bottom:2px;border:none;background:none;width:100%;text-align:left;font-family:'Nunito',sans-serif}
+.nav-item:hover{background:var(--green-dim);color:var(--green-light)}
+.nav-item.active{background:var(--green-dim);color:var(--green-light);border-left:2px solid var(--green)}
+.nav-icon{font-size:15px;width:18px;text-align:center}
+.nav-badge{margin-left:auto;background:var(--yellow-dim);color:var(--yellow-light);border:1px solid var(--yellow-border);font-size:10px;padding:1px 6px;border-radius:10px;font-weight:700}
+.sidebar-foot{padding:14px 18px;border-top:1px solid var(--border)}
+.prog-label{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:5px}
+.prog-track{height:5px;background:rgba(255,255,255,0.07);border-radius:3px;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--green),var(--yellow));border-radius:3px;transition:width .5s ease}
+
+/* MAIN */
+.main{flex:1;overflow-y:auto;overflow-x:hidden;background:var(--bg)}
+.page{display:none}.page.active{display:block}
+
+/* PAGE HEADER */
+.ph{padding:24px 30px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.ph-title{font-family:'Bitter',serif;font-size:24px;font-weight:700;color:var(--heading)}
+.ph-sub{font-size:12px;color:var(--muted);margin-top:2px}
+
+/* STAT GRID */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;padding:20px 30px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px}
+.stat-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+.stat-value{font-size:26px;font-weight:700;color:var(--heading);margin-top:3px;line-height:1}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:3px}
+.stat-card.accent{border-color:var(--yellow-border);background:var(--yellow-dim)}
+.stat-card.accent .stat-value{color:var(--yellow-light)}
+
+/* SECTION */
+.sec{padding:0 30px 24px}
+.sec-title{font-family:'Bitter',serif;font-size:16px;font-weight:700;color:var(--heading);margin-bottom:12px;display:flex;align-items:center;gap:7px}
+
+/* CARDS */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px}
+.card-sm{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:13px 15px}
+
+/* PUB CARDS */
+.pub-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
+.pub-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;cursor:pointer;transition:border-color .15s,background .15s;position:relative;border-left:3px solid transparent}
+.pub-card:hover{border-color:var(--border2);background:var(--card2)}
+.pub-card.visited{border-left-color:var(--green)}
+.pub-card.in-crawl{border-left-color:var(--yellow);background:rgba(232,200,50,.05)}
+.pub-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:5px}
+.pub-name{font-weight:700;font-size:14px;color:var(--heading);line-height:1.3}
+.area-badge{font-size:10px;padding:2px 7px;border-radius:20px;background:rgba(255,255,255,0.06);color:var(--text2);white-space:nowrap;flex-shrink:0;font-weight:600}
+.pub-addr{font-size:11px;color:var(--muted);margin-bottom:8px}
+.pub-tags{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px}
+.tag{font-size:10px;padding:2px 6px;border-radius:4px;font-weight:600}
+.tag-visited{background:rgba(94,196,74,.15);color:var(--green-light)}
+.tag-unvisited{background:rgba(255,255,255,.06);color:var(--text2)}
+.tag-ale{background:rgba(232,200,50,.14);color:var(--yellow-light)}
+.tag-food{background:rgba(94,196,74,.12);color:#9fd690}
+.tag-historic{background:rgba(180,130,50,.14);color:#d4b060}
+.pub-score-row{display:flex;align-items:center;justify-content:space-between;margin-top:6px}
+.dots{display:flex;gap:2px}
+.dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.08)}
+.dot.on{background:var(--green)}
+.dot.on.hi{background:var(--yellow)}
+.score-num{font-size:13px;font-weight:700;color:var(--yellow-light)}
+
+/* FILTER BAR */
+.filter-bar{display:flex;gap:7px;flex-wrap:wrap;align-items:center;padding:13px 30px;border-bottom:1px solid var(--border)}
+.filter-bar input,.filter-bar select{background:var(--card);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);padding:6px 11px;font-size:12px;font-family:'Nunito',sans-serif;outline:none;transition:border-color .15s}
+.filter-bar input:focus,.filter-bar select:focus{border-color:var(--border3)}
+.filter-bar input::placeholder{color:var(--muted)}
+.filter-bar select option{background:#182012}
+.filter-bar input{width:180px}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--rsm);font-size:12px;font-weight:700;cursor:pointer;border:none;transition:all .15s;font-family:'Nunito',sans-serif;letter-spacing:.02em}
+.btn-primary{background:linear-gradient(135deg,var(--green),#3ea82a);color:#0a1a07;font-weight:800}
+.btn-primary:hover{background:linear-gradient(135deg,var(--green-light),var(--green))}
+.btn-yellow{background:var(--yellow);color:#1a1400;font-weight:800}
+.btn-yellow:hover{background:var(--yellow-light)}
+.btn-ghost{background:rgba(255,255,255,.05);color:var(--text2);border:1px solid var(--border2)}
+.btn-ghost:hover{background:rgba(255,255,255,.09);color:var(--text)}
+.btn-success{background:var(--green-dim);color:var(--green-light);border:1px solid rgba(94,196,74,.2)}
+.btn-sm{padding:4px 9px;font-size:11px}
+
+/* MAP */
+#map{width:100%;height:calc(100vh - 105px);min-height:450px}
+.leaflet-container{background:#111a0d!important}
+.leaflet-tile{filter:brightness(.65) saturate(.7) hue-rotate(10deg)}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.80);z-index:2000;display:flex;align-items:flex-start;justify-content:center;padding:32px 16px;overflow-y:auto;backdrop-filter:blur(4px)}
+.modal{background:var(--bg2);border:1px solid var(--border3);border-radius:16px;width:100%;max-width:640px;padding:26px;position:relative;animation:slideUp .22s ease}
+@keyframes slideUp{from{transform:translateY(18px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-close{position:absolute;top:14px;right:14px;background:rgba(255,255,255,.07);border:none;color:var(--text2);width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
+.modal-close:hover{background:rgba(255,255,255,.13)}
+.modal-title{font-family:'Bitter',serif;font-size:21px;font-weight:700;color:var(--heading);padding-right:36px;line-height:1.2}
+.modal-sub{font-size:12px;color:var(--muted);margin-top:3px;margin-bottom:18px}
+
+/* SCORE INPUTS */
+.score-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.score-item label{display:block;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;font-weight:700}
+.score-row{display:flex;align-items:center;gap:8px}
+.score-row input[type=range]{flex:1;height:3px;-webkit-appearance:none;background:rgba(255,255,255,.1);border-radius:2px;outline:none}
+.score-row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--yellow);cursor:pointer}
+.score-val{font-size:12px;font-weight:700;color:var(--yellow-light);min-width:18px;text-align:right}
+
+/* SCORE BARS */
+.bar-wrap{margin-bottom:7px}
+.bar-label{display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-bottom:2px}
+.bar-track{height:4px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden}
+.bar-fill{height:100%;background:linear-gradient(90deg,var(--green),var(--yellow));border-radius:2px;transition:width .4s ease}
+
+/* CRAWL */
+.crawl-stop{display:flex;align-items:center;gap:10px;padding:10px 13px;background:var(--card);border:1px solid var(--border);border-radius:var(--rsm);margin-bottom:7px;cursor:pointer;transition:border-color .15s}
+.crawl-stop:hover{border-color:var(--border2)}
+.crawl-stop.done{border-left:3px solid var(--green)}
+.stop-num{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--green),var(--yellow));color:#0a1a07;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+
+/* LEADERBOARD */
+.lb-item{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer}
+.lb-item:last-child{border-bottom:none}
+.lb-item:hover .lb-name{color:var(--green-light)}
+.lb-rank{font-size:11px;color:var(--muted);width:18px;font-weight:700}
+.lb-medal{font-size:14px;width:18px;text-align:center}
+.lb-name{font-size:13px;font-weight:600;color:var(--heading);transition:color .15s}
+.lb-area{font-size:11px;color:var(--muted)}
+.lb-score{font-size:14px;font-weight:700;color:var(--yellow-light);margin-left:auto}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700}
+.badge-green{background:var(--green-dim);color:var(--green-light);border:1px solid rgba(94,196,74,.2)}
+.badge-yellow{background:var(--yellow-dim);color:var(--yellow-light);border:1px solid var(--yellow-border)}
+.badge-red{background:var(--red-dim);color:#e88;border:1px solid rgba(224,82,82,.2)}
+
+/* OPTION BTNS */
+.opt-group{display:flex;gap:5px;flex-wrap:wrap}
+.opt-btn{padding:5px 11px;border-radius:20px;font-size:11px;border:1px solid var(--border2);background:none;color:var(--text2);cursor:pointer;font-family:'Nunito',sans-serif;font-weight:600;transition:all .15s}
+.opt-btn.active{background:var(--green-dim);border-color:var(--border3);color:var(--green-light)}
+.opt-btn:hover{border-color:var(--border3);color:var(--text)}
+
+/* DIVIDER */
+.div{height:1px;background:var(--border);margin:15px 0}
+
+/* TEXTAREA */
+textarea{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);padding:9px 11px;font-size:12px;font-family:'Nunito',sans-serif;resize:vertical;outline:none;transition:border-color .15s}
+textarea:focus{border-color:var(--border3)}
+textarea::placeholder{color:var(--muted)}
+
+/* CELEBRATION */
+.celebrate{text-align:center;padding:50px 30px}
+.celebrate-icon{font-size:64px;margin-bottom:16px;animation:bounce 1s infinite}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+
+/* RESPONSIVE */
+@media(max-width:700px){
+  .sidebar{display:none}
+  .stat-grid{padding:14px;grid-template-columns:1fr 1fr}
+  .sec{padding:0 14px 18px}
+  .filter-bar{padding:10px 14px}
+  .ph{padding:16px 14px 12px}
+  .pub-grid{grid-template-columns:1fr}
+  .modal{padding:18px}
+  .score-grid{grid-template-columns:1fr}
+}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(94,196,74,.2);border-radius:3px}
+
+/* UTILS */
+.hidden{display:none!important}
+.flex{display:flex}
+.items-center{align-items:center}
+.justify-between{justify-content:space-between}
+.gap-8{gap:8px}
+.mt-8{margin-top:8px}
+.mt-12{margin-top:12px}
+.mt-16{margin-top:16px}
+.mb-12{margin-bottom:12px}
+.text-muted{color:var(--muted)}
+.text-sm{font-size:11px}
+
+/* MOBILE NAV */
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-top:1px solid var(--border);z-index:500;padding:8px 0}
+@media(max-width:700px){.mobile-nav{display:flex;justify-content:space-around}}
+.mob-btn{display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:none;color:var(--text2);cursor:pointer;font-size:10px;font-family:'Nunito',sans-serif;padding:4px 8px;border-radius:6px}
+.mob-btn.active{color:var(--green-light)}
+.mob-icon{font-size:18px}
+
+/* PHOTO GRID */
+.photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:8px}
+.photo-thumb{aspect-ratio:1;background:var(--bg3);border-radius:6px;overflow:hidden;cursor:pointer;border:1px solid var(--border)}
+.photo-thumb img{width:100%;height:100%;object-fit:cover}
+
+/* TAG INPUT */
+.tag-row{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
+
+/* AREA PROGRESS */
+.area-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:13px 15px}
+.area-name{font-size:12px;font-weight:700;color:var(--heading);margin-bottom:5px}
+.area-count{font-size:10px;color:var(--muted);margin-bottom:6px}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--card2);border:1px solid var(--border3);border-radius:var(--rsm);padding:10px 16px;font-size:13px;color:var(--green-light);font-weight:600;z-index:9999;animation:toastIn .2s ease;pointer-events:none}
+@keyframes toastIn{from{transform:translateY(10px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+/* ═══ AUTH SCREEN ════════════════════════════════════════════ */
+#auth-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:20px;background-image:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(94,196,74,0.08) 0%,transparent 70%)}
+.auth-box{width:100%;max-width:420px;background:var(--bg2);border:1px solid var(--border3);border-radius:20px;padding:32px 28px;animation:fadeUp .3s ease}
+@keyframes fadeUp{from{transform:translateY(14px);opacity:0}to{transform:translateY(0);opacity:1}}
+.auth-brand{text-align:center;margin-bottom:24px}
+.auth-logo{width:52px;height:52px;background:linear-gradient(135deg,var(--green),var(--yellow));border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 10px}
+.auth-title{font-family:'Bitter',serif;font-size:21px;font-weight:700;color:var(--heading)}
+.auth-sub{font-size:12px;color:var(--muted);margin-top:3px}
+.auth-tabs{display:flex;background:var(--bg3);border-radius:9px;padding:3px;margin-bottom:20px}
+.auth-tab{flex:1;padding:7px;text-align:center;border-radius:7px;cursor:pointer;font-size:13px;font-weight:700;color:var(--text2);border:none;background:none;font-family:'Nunito',sans-serif;transition:all .15s}
+.auth-tab.active{background:var(--card2);color:var(--green-light)}
+.auth-field{margin-bottom:13px}
+.auth-field label{display:block;font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px}
+.auth-field input{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);padding:9px 12px;font-size:14px;font-family:'Nunito',sans-serif;outline:none;transition:border-color .15s}
+.auth-field input:focus{border-color:var(--border3)}
+.auth-field input::placeholder{color:var(--muted)}
+.auth-btn{width:100%;padding:10px;border-radius:var(--rsm);font-size:14px;font-weight:800;cursor:pointer;border:none;font-family:'Nunito',sans-serif;background:linear-gradient(135deg,var(--green),#3ea82a);color:#0a1a07;transition:all .15s;margin-top:3px}
+.auth-btn:hover{background:linear-gradient(135deg,var(--green-light),var(--green))}
+.auth-btn:disabled{opacity:.5;cursor:not-allowed}
+.auth-err{background:var(--red-dim);border:1px solid rgba(224,82,82,.25);border-radius:var(--rsm);padding:8px 11px;font-size:12px;color:#e88;margin-bottom:11px;display:none}
+.auth-ok{background:var(--green-dim);border:1px solid rgba(94,196,74,.25);border-radius:var(--rsm);padding:8px 11px;font-size:12px;color:var(--green-light);margin-bottom:11px;display:none}
+.auth-link{text-align:center;margin-top:12px;font-size:12px;color:var(--muted)}
+.auth-link a{color:var(--green-light);cursor:pointer;font-weight:700;text-decoration:none}
+.auth-setup-note{margin-top:16px;padding:11px 13px;background:var(--yellow-dim);border:1px solid var(--yellow-border);border-radius:var(--rsm);font-size:11px;color:var(--text2);line-height:1.6}
+.auth-setup-note strong{color:var(--yellow-light)}
+/* SYNC DOT */
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;margin-right:4px;animation:psync 2s infinite}
+@keyframes psync{0%,100%{opacity:1}50%{opacity:.3}}
+.sync-dot.offline{background:var(--yellow);animation:none}
+.sync-dot.saving{background:var(--yellow);animation:psync .5s infinite}
+/* USER PANEL */
+.user-panel{padding:11px 13px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;cursor:pointer;transition:background .15s}
+.user-panel:hover{background:var(--green-dim)}
+.user-avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--green),var(--yellow));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#0a1a07;flex-shrink:0}
+.user-name-small{font-size:12px;font-weight:700;color:var(--heading);line-height:1.2}
+.user-email-small{font-size:10px;color:var(--muted)}
+.user-signout{margin-left:auto;font-size:10px;color:var(--muted);background:none;border:none;cursor:pointer;font-family:'Nunito',sans-serif;padding:2px 5px;border-radius:3px;transition:color .15s}
+.user-signout:hover{color:var(--red)}
+/* PROFILE PAGE */
+.profile-section{max-width:480px}
+
+</style>
+</head>
+<body>
+
+<!-- ═══ AUTH SCREEN ════════════════════════════════════════ -->
+<div id="auth-screen">
+  <div class="auth-box">
+    <div class="auth-brand">
+      <div class="auth-logo">🍺</div>
+      <div class="auth-title">City of Ale</div>
+      <div class="auth-sub">Norwich's ultimate pub crawl tracker</div>
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchTab('signin')">Sign In</button>
+      <button class="auth-tab" onclick="switchTab('signup')">Create Account</button>
+    </div>
+    <!-- SIGN IN -->
+    <div id="tab-signin">
+      <div id="si-err" class="auth-err"></div><div id="si-ok" class="auth-ok"></div>
+      <div class="auth-field"><label>Email</label><input type="email" id="si-email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')signIn()"></div>
+      <div class="auth-field"><label>Password</label><input type="password" id="si-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')signIn()"></div>
+      <button class="auth-btn" id="si-btn" onclick="signIn()">Sign In →</button>
+      <div class="auth-link"><a onclick="switchTab('forgot')">Forgot password?</a></div>
+    </div>
+    <!-- SIGN UP -->
+    <div id="tab-signup" style="display:none">
+      <div id="su-err" class="auth-err"></div><div id="su-ok" class="auth-ok"></div>
+      <div class="auth-field"><label>Your name</label><input type="text" id="su-name" placeholder="e.g. Dave the Ale Hunter" onkeydown="if(event.key==='Enter')signUp()"></div>
+      <div class="auth-field"><label>Email</label><input type="email" id="su-email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')signUp()"></div>
+      <div class="auth-field"><label>Password (min 6 chars)</label><input type="password" id="su-pass" placeholder="Choose a strong password" onkeydown="if(event.key==='Enter')signUp()"></div>
+      <button class="auth-btn" id="su-btn" onclick="signUp()">Create Account →</button>
+    </div>
+    <!-- FORGOT -->
+    <div id="tab-forgot" style="display:none">
+      <div id="fp-err" class="auth-err"></div><div id="fp-ok" class="auth-ok"></div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Enter your email for a reset link.</p>
+      <div class="auth-field"><label>Email</label><input type="email" id="fp-email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')sendReset()"></div>
+      <button class="auth-btn" id="fp-btn" onclick="sendReset()">Send Reset Link →</button>
+      <div class="auth-link"><a onclick="switchTab('signin')">← Back to sign in</a></div>
+    </div>
+    <div id="setup-note" class="auth-setup-note" style="display:none">
+      <strong>⚙️ Setup needed:</strong> Open the HTML file and replace <code style="color:var(--green-light)">https://wllpyxjlwgotmzwzimjj.supabase.co</code> and <code style="color:var(--green-light)">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndsbHB5eGpsd2dvdG16d3ppbWpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyMjE4NDYsImV4cCI6MjA5MDc5Nzg0Nn0.QSPE3bV-RKO7F2dku_MPdmBcKpCO13ijRN-MQyNgGh8</code> with your free <a href="https://supabase.com" target="_blank" style="color:var(--green-light)">Supabase</a> project values. Until then the app runs in offline mode — <a onclick="skipAuth()" style="color:var(--yellow-light);cursor:pointer">continue offline →</a>
+    </div>
+  </div>
+</div>
+
+<div class="app" id="app" style="display:none">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="brand">
+    <div class="brand-mark">
+      <div class="brand-icon">🍺</div>
+      <div>
+        <div class="brand-name">City of Ale</div>
+        <div class="brand-sub">City Tracker</div>
+      </div>
+    </div>
+  </div>
+  <nav>
+    <button class="nav-item active" onclick="showPage('dashboard')"><span class="nav-icon">⊞</span> Dashboard</button>
+    <button class="nav-item" onclick="showPage('pubs')"><span class="nav-icon">🍺</span> All Pubs <span class="nav-badge" id="nav-total">0</span></button>
+    <button class="nav-item" onclick="showPage('map')"><span class="nav-icon">🗺</span> Map</button>
+    <button class="nav-item" onclick="showPage('crawl')"><span class="nav-icon">🚶</span> Crawl Planner</button>
+    <button class="nav-item" onclick="showPage('stats')"><span class="nav-icon">📊</span> Stats</button>
+  </nav>
+  <div class="sidebar-foot">
+    <div class="prog-label">
+      <span id="sb-prog-label">0 of 0 visited</span>
+      <span id="sb-prog-pct">0%</span>
+    </div>
+    <div class="prog-track"><div class="prog-fill" id="sb-prog-fill" style="width:0%"></div></div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+
+  <!-- DASHBOARD -->
+  <div class="page active" id="page-dashboard">
+    <div class="ph">
+      <div>
+        <div class="ph-title">🍺 City of Ale</div>
+        <div class="ph-sub" id="dash-sub">Track, score and conquer every pub in Norwich</div>
+      </div>
+      <button class="btn btn-yellow" onclick="showPage('crawl')">Plan a Crawl →</button>
+    </div>
+    <div class="stat-grid" id="dash-stats"></div>
+    <div class="sec">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
+        <div>
+          <div class="sec-title">🏆 Top Rated Pubs</div>
+          <div class="card" id="top-rated"></div>
+        </div>
+        <div>
+          <div class="sec-title">🕐 Recently Visited</div>
+          <div class="card" id="recent-visits"></div>
+        </div>
+      </div>
+      <div class="sec-title">📍 Nearby Unvisited</div>
+      <div class="pub-grid" id="dash-unvisited"></div>
+    </div>
+  </div>
+
+  <!-- ALL PUBS -->
+  <div class="page" id="page-pubs">
+    <div class="ph">
+      <div>
+        <div class="ph-title">All Norwich Pubs</div>
+        <div class="ph-sub" id="pubs-count"></div>
+      </div>
+    </div>
+    <div class="filter-bar">
+      <input type="text" id="search" placeholder="🔍 Search pubs..." oninput="renderPubs()">
+      <select id="area-f" onchange="renderPubs()"><option value="">All Areas</option></select>
+      <select id="vis-f" onchange="renderPubs()">
+        <option value="">All Status</option>
+        <option value="v">Visited</option>
+        <option value="u">Unvisited</option>
+      </select>
+      <select id="sort-f" onchange="renderPubs()">
+        <option value="alpha">A–Z</option>
+        <option value="score">Highest Rated</option>
+        <option value="area">By Area</option>
+        <option value="vis">Visited First</option>
+      </select>
+      <select id="type-f" onchange="renderPubs()">
+        <option value="">All Types</option>
+        <option value="ale">Real Ale</option>
+        <option value="food">Serves Food</option>
+        <option value="hist">Historic</option>
+      </select>
+    </div>
+    <div class="sec" style="padding-top:18px">
+      <div class="pub-grid" id="pub-list"></div>
+    </div>
+  </div>
+
+  <!-- MAP -->
+  <div class="page" id="page-map">
+    <div class="ph">
+      <div>
+        <div class="ph-title">Pub Map</div>
+        <div class="ph-sub">All Norwich pubs plotted across the city</div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;font-size:11px;color:var(--muted);font-weight:600">
+        <span style="width:9px;height:9px;border-radius:50%;background:var(--green);display:inline-block"></span>Visited
+        <span style="width:9px;height:9px;border-radius:50%;background:var(--yellow);display:inline-block;margin-left:6px"></span>Unvisited
+        <span style="width:9px;height:9px;border-radius:50%;background:#6af;display:inline-block;margin-left:6px"></span>In Crawl
+      </div>
+    </div>
+    <div id="map"></div>
+  </div>
+
+  <!-- CRAWL PLANNER -->
+  <div class="page" id="page-crawl">
+    <div class="ph">
+      <div>
+        <div class="ph-title">🚶 Crawl Planner</div>
+        <div class="ph-sub">Generate your perfect Norwich pub crawl</div>
+      </div>
+    </div>
+    <div class="sec" style="padding-top:18px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px">
+        <div class="card">
+          <div class="sec-title" style="margin-bottom:14px">⚙️ Crawl Settings</div>
+
+          <div style="margin-bottom:14px">
+            <label style="display:block;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;font-weight:700">Number of Pubs</label>
+            <div style="display:flex;align-items:center;gap:10px">
+              <input type="range" min="2" max="15" value="6" id="crawl-n" style="flex:1;height:3px;-webkit-appearance:none;background:rgba(255,255,255,.1);border-radius:2px;outline:none" oninput="document.getElementById('crawl-n-val').textContent=this.value">
+              <span id="crawl-n-val" style="font-weight:700;color:var(--yellow-light);min-width:18px">6</span>
+            </div>
+            <style>#crawl-n::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--yellow);cursor:pointer}</style>
+          </div>
+
+          <div style="margin-bottom:14px">
+            <label style="display:block;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px;font-weight:700">Area</label>
+            <div class="opt-group" id="crawl-area-group">
+              <button class="opt-btn active" data-val="" onclick="pickOpt(this,'crawl-area-group')">Any</button>
+            </div>
+          </div>
+
+          <div style="margin-bottom:14px">
+            <label style="display:block;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px;font-weight:700">Theme</label>
+            <div class="opt-group">
+              <button class="opt-btn active" data-theme="balanced" onclick="pickTheme(this)">Balanced</button>
+              <button class="opt-btn" data-theme="ale" onclick="pickTheme(this)">Best Ale</button>
+              <button class="opt-btn" data-theme="food" onclick="pickTheme(this)">Best Food</button>
+              <button class="opt-btn" data-theme="atmosphere" onclick="pickTheme(this)">Atmosphere</button>
+              <button class="opt-btn" data-theme="historic" onclick="pickTheme(this)">Historic Pubs</button>
+              <button class="opt-btn" data-theme="unvisited" onclick="pickTheme(this)">Unvisited Only</button>
+            </div>
+          </div>
+
+          <div style="margin-bottom:18px">
+            <label style="display:block;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px;font-weight:700">Priority</label>
+            <div class="opt-group" id="crawl-pri-group">
+              <button class="opt-btn active" data-val="score" onclick="pickOpt(this,'crawl-pri-group')">Highest Rated</button>
+              <button class="opt-btn" data-val="close" onclick="pickOpt(this,'crawl-pri-group')">Closest Walk</button>
+              <button class="opt-btn" data-val="unvisited" onclick="pickOpt(this,'crawl-pri-group')">New Pubs First</button>
+            </div>
+          </div>
+
+          <button class="btn btn-yellow" style="width:100%;justify-content:center" onclick="generateCrawl()">🍺 Generate Route</button>
+        </div>
+
+        <div>
+          <div id="crawl-empty" class="card" style="text-align:center;padding:40px 18px;color:var(--muted)">
+            <div style="font-size:36px;margin-bottom:10px">🍻</div>
+            <div style="font-size:13px">Configure your crawl and hit Generate to get your route</div>
+          </div>
+          <div id="crawl-result" class="hidden">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+              <div class="sec-title">Your Route</div>
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-ghost btn-sm" onclick="markCrawlDone()">Mark All Done</button>
+                <button class="btn btn-ghost btn-sm" onclick="clearCrawl()">Clear</button>
+              </div>
+            </div>
+            <div id="crawl-list"></div>
+            <div id="crawl-sum" style="margin-top:12px;padding:12px;background:var(--card);border:1px solid var(--border);border-radius:var(--rsm);font-size:12px;color:var(--text2);line-height:1.6"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="page" id="page-stats">
+    <div class="ph">
+      <div>
+        <div class="ph-title">Progress & Stats</div>
+        <div class="ph-sub">Your Norwich pub crawl in numbers</div>
+      </div>
+    </div>
+    <div class="stat-grid" id="stats-top"></div>
+    <div class="sec">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
+        <div>
+          <div class="sec-title">🏆 Top 15 by Score</div>
+          <div class="card" id="stats-lb"></div>
+        </div>
+        <div>
+          <div class="sec-title">📊 Category Averages</div>
+          <div class="card" id="stats-cats"></div>
+        </div>
+      </div>
+      <div class="sec-title">🗺 Progress by Area</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px" id="stats-areas"></div>
+    </div>
+  </div>
+    <!-- PROFILE -->
+    <div class="page" id="page-profile">
+      <div class="ph"><div><div class="ph-title">👤 My Profile</div><div class="ph-sub">Account and data settings</div></div></div>
+      <div class="sec" style="padding-top:16px;max-width:480px">
+        <div class="card" style="margin-bottom:14px">
+          <div class="sec-title" style="margin-bottom:11px">Account Details</div>
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+            <div id="profile-avatar" style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--green),var(--yellow));display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#0a1a07;flex-shrink:0"></div>
+            <div><div id="profile-name-disp" style="font-size:15px;font-weight:700;color:var(--heading)"></div><div id="profile-email-disp" style="font-size:12px;color:var(--muted)"></div></div>
+          </div>
+          <div style="margin-bottom:10px">
+            <label style="display:block;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;font-weight:700">Display Name</label>
+            <input type="text" id="profile-name-inp" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);padding:8px 10px;font-size:13px;font-family:'Nunito',sans-serif;outline:none">
+          </div>
+          <button class="btn btn-primary" onclick="updateProfile()">Update Name</button>
+        </div>
+        <div class="card">
+          <div class="sec-title" style="margin-bottom:10px">Data &amp; Sync</div>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.7">Your pub data syncs automatically to Supabase. Sign in from any device to access your scores and notes.</p>
+          <div style="display:flex;gap:7px;flex-wrap:wrap">
+            <button class="btn btn-ghost" onclick="forceSyncDown()">&#8595; Reload from Cloud</button>
+            <button class="btn btn-ghost btn-sm" style="color:var(--red);border-color:rgba(224,82,82,.3)" onclick="if(confirm('Sign out?'))doSignOut()">Sign Out</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+</main>
+</div>
+
+<!-- MOBILE NAV -->
+<div class="mobile-nav">
+  <button class="mob-btn active" onclick="showPage('dashboard')"><span class="mob-icon">⊞</span>Home</button>
+  <button class="mob-btn" onclick="showPage('pubs')"><span class="mob-icon">🍺</span>Pubs</button>
+  <button class="mob-btn" onclick="showPage('map')"><span class="mob-icon">🗺</span>Map</button>
+  <button class="mob-btn" onclick="showPage('crawl')"><span class="mob-icon">🚶</span>Crawl</button>
+  <button class="mob-btn" onclick="showPage('stats')"><span class="mob-icon">📊</span>Stats</button>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay hidden" id="modal-overlay" onclick="maybeClose(event)">
+  <div class="modal"><button class="modal-close" onclick="closeModal()">✕</button><div id="modal-body"></div></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// COMPLETE NORWICH PUB DATABASE — 120+ pubs across all areas
+// ═══════════════════════════════════════════════════════════════
+const ALL_PUBS = [
+// ─── CITY CENTRE / CENTRAL ───────────────────────────────────
+{id:1,name:"Adam & Eve",address:"17 Bishopgate, NR3 1RZ",area:"Cathedral Quarter",lat:52.6304,lng:1.2983,ale:true,food:false,historic:true,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:2,name:"The Belgian Monk",address:"7 Pottergate, NR2 1DS",area:"City Centre",lat:52.6270,lng:1.2921,ale:true,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:3,name:"The Murderers",address:"2-4 Timber Hill, NR1 3LB",area:"City Centre",lat:52.6285,lng:1.2963,ale:true,food:true,historic:true,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:4,name:"The Gardeners Arms",address:"Timberhill, NR1 3JT",area:"City Centre",lat:52.6282,lng:1.2972,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:5,name:"The Bell Hotel (JD Wetherspoon)",address:"5 Orford Hill, NR1 3QB",area:"City Centre",lat:52.6278,lng:1.2955,ale:true,food:true,historic:true,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:6,name:"The Coach & Horses",address:"51 Bethel Street, NR2 1NR",area:"City Centre",lat:52.6277,lng:1.2925,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:7,name:"The Champion",address:"101 Chapel Field Road, NR2 1SE",area:"City Centre",lat:52.6268,lng:1.2898,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:8,name:"Bier Draak",address:"42 King Street, NR1 1PD",area:"King Street",lat:52.6262,lng:1.2978,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:9,name:"The Compleat Angler",address:"120 Prince of Wales Road, NR1 1NS",area:"Prince of Wales Road",lat:52.6258,lng:1.2998,ale:true,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:10,name:"Dead Wax Social",address:"18 St Georges Street, NR3 1BA",area:"City Centre",lat:52.6295,lng:1.2965,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:11,name:"Dick's Bar",address:"19 Bedford Street, NR2 1AR",area:"City Centre",lat:52.6280,lng:1.2945,ale:false,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:12,name:"The Bicycle Shop",address:"17 St Benedicts Street, NR2 4PE",area:"St Benedicts",lat:52.6268,lng:1.2898,ale:true,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:13,name:"The Rumsey Wells",address:"St Andrews Street, NR2 4TP",area:"St Benedicts",lat:52.6275,lng:1.2932,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:14,name:"Bishop's Bar",address:"8-10 St Andrews Hill, NR2 1AD",area:"City Centre",lat:52.6275,lng:1.2940,ale:true,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:15,name:"The Drawing Rooms",address:"23 Pottergate, NR2 1DS",area:"City Centre",lat:52.6270,lng:1.2918,ale:false,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:16,name:"Alley Olé",address:"20 Bridewell Alley, NR2 1HX",area:"City Centre",lat:52.6277,lng:1.2943,ale:false,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:17,name:"Chambers Cocktail Company",address:"12-14 Wensum Street, NR3 1HY",area:"Fye Bridge",lat:52.6330,lng:1.2985,ale:false,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:18,name:"Cosy Club",address:"45-51 London Street, NR2 1HU",area:"City Centre",lat:52.6282,lng:1.2960,ale:false,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:19,name:"Mulligans",address:"3 Dove Street, NR2 1DE",area:"City Centre",lat:52.6272,lng:1.2912,ale:false,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:20,name:"Be At One",address:"23 Bank Plain, NR2 4SF",area:"City Centre",lat:52.6278,lng:1.2952,ale:false,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:21,name:"Bar & Beyond",address:"24-26 Prince of Wales Road, NR1 1LG",area:"Prince of Wales Road",lat:52.6264,lng:1.3004,ale:false,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:22,name:"Barcadia",address:"8-14 Prince of Wales Road, NR1 1LB",area:"Prince of Wales Road",lat:52.6262,lng:1.3008,ale:false,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:23,name:"Bar 19",address:"19 Upper King Street, NR3 1RB",area:"City Centre",lat:52.6302,lng:1.2970,ale:false,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:24,name:"The Louis Marchesi",address:"17 Tombland, NR3 1HF",area:"Cathedral Quarter",lat:52.6312,lng:1.3018,ale:false,food:true,historic:true,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:25,name:"Butcher Bhoy",address:"10 Exchange Street, NR2 1AT",area:"City Centre",lat:52.6279,lng:1.2951,ale:false,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:26,name:"CopaCubana",address:"3 Upper King Street, NR3 1RB",area:"City Centre",lat:52.6302,lng:1.2968,ale:false,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+
+// ─── FYE BRIDGE / WENSUM STREET ──────────────────────────────
+{id:27,name:"The Ribs of Beef",address:"24 Wensum Street, NR3 1HY",area:"Fye Bridge",lat:52.6330,lng:1.2985,ale:true,food:true,historic:true,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:28,name:"The Mischief",address:"4 Wensum Street, NR3 1HY",area:"Fye Bridge",lat:52.6328,lng:1.2988,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:29,name:"Beer Hatch",address:"22a Wensum Street, NR3 1HY",area:"Fye Bridge",lat:52.6329,lng:1.2987,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:30,name:"The Britons Arms",address:"9 Elm Hill, NR3 1HN",area:"Cathedral Quarter",lat:52.6308,lng:1.2998,ale:false,food:true,historic:true,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:31,name:"The Wig & Pen",address:"6 St Martin at Palace Plain, NR3 1RN",area:"Cathedral Quarter",lat:52.6318,lng:1.3005,ale:true,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+
+// ─── MAGDALEN STREET / NR3 ───────────────────────────────────
+{id:32,name:"The Plasterers Arms",address:"Cowgate, NR3 1SZ",area:"Magdalen Street",lat:52.6335,lng:1.2965,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:33,name:"The White Lion",address:"Oak Street, NR3 3AF",area:"Magdalen Street",lat:52.6340,lng:1.2938,ale:true,food:true,historic:true,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:34,name:"The Whalebone",address:"144 Magdalen Street, NR3 1JU",area:"Magdalen Street",lat:52.6352,lng:1.2972,ale:true,food:false,historic:true,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:35,name:"The Leopard",address:"Bull Close Road, NR3 1NG",area:"Magdalen Street",lat:52.6358,lng:1.2945,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:36,name:"The Kings Head",address:"42 Magdalen Street, NR3 1JE",area:"Magdalen Street",lat:52.6348,lng:1.2960,ale:false,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:37,name:"The Norwich Tap House",address:"St Augustines Street, NR3 3BE",area:"Magdalen Street",lat:52.6360,lng:1.2920,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:38,name:"The Catherine Wheel",address:"61 St Augustines Street, NR3 3BG",area:"Magdalen Street",lat:52.6362,lng:1.2918,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:39,name:"The William & Florence",address:"NR3",area:"Magdalen Street",lat:52.6345,lng:1.2975,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:40,name:"The York Tavern",address:"York Street, NR3",area:"Magdalen Street",lat:52.6355,lng:1.2930,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+
+// ─── GOLDEN TRIANGLE ─────────────────────────────────────────
+{id:41,name:"The Fat Cat",address:"49 West End Street, NR2 4NT",area:"Golden Triangle",lat:52.6228,lng:1.2812,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:42,name:"The Jubilee",address:"26 St Leonards Road, NR1 4BL",area:"Golden Triangle",lat:52.6208,lng:1.2852,ale:true,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:43,name:"The Trafford Arms",address:"61 Grove Road, NR1 3RL",area:"Golden Triangle",lat:52.6222,lng:1.2868,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:44,name:"The Alexandra Tavern",address:"16 Stafford Street, NR2 3BB",area:"Golden Triangle",lat:52.6230,lng:1.2862,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:45,name:"The Black Horse",address:"55 Earlham Road, NR2 3AD",area:"Golden Triangle",lat:52.6238,lng:1.2835,ale:true,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:46,name:"The Birdcage",address:"23 Pottergate, NR2 1DS",area:"City Centre",lat:52.6264,lng:1.2892,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:47,name:"The Trowel & Hammer",address:"25 St Stephens Road, NR1 3SP",area:"Golden Triangle",lat:52.6250,lng:1.2890,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+
+// ─── EARLHAM / WEST NORWICH ───────────────────────────────────
+{id:48,name:"The Cellar House",address:"Earlham Road, NR2 3DB",area:"Earlham",lat:52.6220,lng:1.2800,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:49,name:"The Bakers Arms",address:"Earlham Road, NR2 3DF",area:"Earlham",lat:52.6215,lng:1.2785,ale:true,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:50,name:"The Gladstone Arms",address:"Gladstone Street, NR2 3BU",area:"Earlham",lat:52.6232,lng:1.2818,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:51,name:"The Dove",address:"Dereham Road, NR2 3HJ",area:"Earlham",lat:52.6225,lng:1.2740,ale:true,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:52,name:"The Vine Inn",address:"Dove Street, NR2 1DE",area:"St Benedicts",lat:52.6270,lng:1.2910,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:53,name:"The Queen of Iceni",address:"Dereham Road, NR5 8TE",area:"New Costessey",lat:52.6182,lng:1.2665,ale:false,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+
+// ─── KING STREET / RIVERSIDE ─────────────────────────────────
+{id:54,name:"St Andrews Brew House",address:"41 St Andrews Street, NR2 4TP",area:"City Centre",lat:52.6274,lng:1.2938,ale:true,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:55,name:"The Playhouse Bar",address:"42-58 St Georges Street, NR3 1AB",area:"City Centre",lat:52.6295,lng:1.2960,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:56,name:"Rivolo Lounge",address:"City Centre, NR1",area:"City Centre",lat:52.6270,lng:1.2950,ale:false,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:57,name:"The Last",address:"76 St Georges Street, NR3 1AB",area:"City Centre",lat:52.6294,lng:1.2962,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:58,name:"Aroma",address:"5 Upper King Street, NR3 1RL",area:"City Centre",lat:52.6304,lng:1.2968,ale:false,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:59,name:"11th & Social",address:"9-11 Upper King Street, NR3 1RB",area:"City Centre",lat:52.6304,lng:1.2966,ale:false,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+
+// ─── THORPE HAMLET / EAST ─────────────────────────────────────
+{id:60,name:"The Rosary Tavern",address:"Rosary Road, NR1 4BT",area:"Thorpe Road",lat:52.6238,lng:1.3042,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:61,name:"The Ketts Tavern",address:"Ketts Hill, NR1 4HE",area:"Ketts Hill",lat:52.6245,lng:1.3125,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:62,name:"The Anchor",address:"Goldwell Road, NR1 4EH",area:"Thorpe Road",lat:52.6242,lng:1.3068,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+
+// ─── BER STREET / SOUTH ───────────────────────────────────────
+{id:63,name:"The Horse & Dray",address:"Ber Street, NR1 3EU",area:"Ber Street",lat:52.6252,lng:1.2960,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:64,name:"The Boar's Head",address:"2 Surrey Street, NR1 3NF",area:"City Centre",lat:52.6265,lng:1.2978,ale:true,food:false,historic:true,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:65,name:"The Mitre",address:"25 Ber Street, NR1 3EJ",area:"Ber Street",lat:52.6258,lng:1.2953,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+
+// ─── NEW CATTON / AYLSHAM ROAD ────────────────────────────────
+{id:66,name:"The Oakfields",address:"Aylsham Road, NR3 2HF",area:"Aylsham Road",lat:52.6412,lng:1.2935,ale:false,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:67,name:"The Boundary",address:"Aylsham Road, NR3",area:"Aylsham Road",lat:52.6418,lng:1.2928,ale:false,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:68,name:"The Robin Hood",address:"Aylsham Road, NR3",area:"Aylsham Road",lat:52.6425,lng:1.2940,ale:true,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:69,name:"The Freemasons Arms",address:"Hall Road, NR3",area:"New Catton",lat:52.6388,lng:1.2912,ale:true,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+
+// ─── HELLESDON / NW ──────────────────────────────────────────
+{id:70,name:"The Lamb Inn",address:"Hellesdon Road, NR6",area:"Hellesdon",lat:52.6475,lng:1.2702,ale:true,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:71,name:"The Drayton Old Lodge",address:"Drayton High Road, NR6",area:"Hellesdon",lat:52.6488,lng:1.2685,ale:true,food:true,historic:true,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+
+// ─── SPROWSTON / NORTH EAST ───────────────────────────────────
+{id:72,name:"The Woodman",address:"Sprowston Road, NR3 4JX",area:"Sprowston",lat:52.6442,lng:1.3058,ale:true,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:73,name:"The Sole & Heel",address:"Sprowston Road, NR3",area:"Sprowston",lat:52.6448,lng:1.3062,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+
+// ─── LAKENHAM / SOUTH ─────────────────────────────────────────
+{id:74,name:"The Royal Oak",address:"Bracondale, NR1 2EL",area:"Lakenham",lat:52.6210,lng:1.2975,ale:true,food:true,historic:true,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:75,name:"The Trafford Arms (Lakenham)",address:"Long John Hill, NR1 2ND",area:"Lakenham",lat:52.6195,lng:1.2952,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:76,name:"The Clarence Harbour",address:"Clarence Road, NR1 1HQ",area:"Lakenham",lat:52.6192,lng:1.2988,ale:false,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:77,name:"The Waterfront",address:"Thorpe Road, NR1 1UB",area:"Riverside",lat:52.6250,lng:1.3010,ale:false,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+
+// ─── THORPE ST ANDREW / EAST ──────────────────────────────────
+{id:78,name:"The Rushcutters",address:"Thorpe Road, NR7",area:"Thorpe St Andrew",lat:52.6245,lng:1.3280,ale:true,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:79,name:"The Red Lion",address:"Yarmouth Road, NR7 0EF",area:"Thorpe St Andrew",lat:52.6238,lng:1.3338,ale:true,food:true,historic:true,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:80,name:"The Kings Head (Thorpe)",address:"Yarmouth Road, NR7",area:"Thorpe St Andrew",lat:52.6232,lng:1.3350,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+
+// ─── EATON / UNTHANK ROAD ─────────────────────────────────────
+{id:81,name:"The Unthank Arms",address:"Unthank Road, NR2 2PB",area:"Unthank Road",lat:52.6202,lng:1.2845,ale:true,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:82,name:"The Eaton Cottage",address:"Eaton Street, NR4 6PZ",area:"Eaton",lat:52.6155,lng:1.2768,ale:true,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:83,name:"The Eaton Park Ale House",address:"Eaton Road, NR4",area:"Eaton",lat:52.6148,lng:1.2755,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+
+// ─── COSTESSEY / WEST OUTER ───────────────────────────────────
+{id:84,name:"The Falcon",address:"Dereham Road, NR5",area:"Costessey",lat:52.6298,lng:1.2498,ale:true,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:85,name:"The Longwater",address:"Longwater Lane, NR5",area:"Costessey",lat:52.6310,lng:1.2448,ale:false,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+
+// ─── BOWTHORPE / WEST ─────────────────────────────────────────
+{id:86,name:"The Freed Man",address:"112 St Mildreds Road, NR5 8RS",area:"Bowthorpe",lat:52.6275,lng:1.2512,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+
+// ─── NORWICH RIVERSIDE / PULLS FERRY ─────────────────────────
+{id:87,name:"The Ribs of Beef (Bishops Bridge)",address:"Bishop Bridge Road, NR3",area:"Cathedral Quarter",lat:52.6322,lng:1.3002,ale:true,food:false,historic:true,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+
+// ─── MILE CROSS / NORTH ───────────────────────────────────────
+{id:88,name:"The Kingfisher",address:"Mile Cross Road, NR3",area:"Mile Cross",lat:52.6445,lng:1.2862,ale:false,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:89,name:"The Anglers",address:"Mile Cross Road, NR3",area:"Mile Cross",lat:52.6440,lng:1.2870,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+
+// ─── TUCKSWOOD / SOUTH OUTER ──────────────────────────────────
+{id:90,name:"The Tuckswood Tavern",address:"Tuckswood Lane, NR4",area:"Tuckswood",lat:52.6082,lng:1.2838,ale:false,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+
+// ─── TROWSE / SOUTH EAST ──────────────────────────────────────
+{id:91,name:"The White Horse (Trowse)",address:"Trowse, NR14 8ST",area:"Trowse",lat:52.6102,lng:1.3068,ale:true,food:true,historic:true,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:92,name:"The Crown Point Tavern",address:"Bracondale, NR1",area:"Lakenham",lat:52.6205,lng:1.2995,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+
+// ─── WATERLOO PARK AREA ───────────────────────────────────────
+{id:93,name:"The Brickmakers",address:"Sprowston Road, NR3 4JU",area:"Sprowston",lat:52.6445,lng:1.3045,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:94,name:"The Rose Tavern",address:"Queens Road, NR1 3QS",area:"City Centre",lat:52.6260,lng:1.2965,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+
+// ─── CHAPELFIELD / WEST CENTRAL ───────────────────────────────
+{id:95,name:"The Ploughshare",address:"Bethel Street, NR2 1NR",area:"City Centre",lat:52.6274,lng:1.2920,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:96,name:"BrewDog Norwich",address:"1 Queens Street, NR2 4SG",area:"City Centre",lat:52.6272,lng:1.2950,ale:true,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+
+// ─── PRINCES STREET / OLD CITY ────────────────────────────────
+{id:97,name:"The Grapes",address:"Princes Street, NR3 1AE",area:"City Centre",lat:52.6290,lng:1.2955,ale:true,food:false,historic:true,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:98,name:"The Plough",address:"Palace Street, NR3 1RW",area:"Cathedral Quarter",lat:52.6320,lng:1.3010,ale:true,food:false,historic:true,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:99,name:"The Ten Bells",address:"Westwick Street, NR2 4SB",area:"St Benedicts",lat:52.6272,lng:1.2908,ale:true,food:false,historic:true,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+
+// ─── EXTRA NR3 LOCALS ─────────────────────────────────────────
+{id:100,name:"The Artichoke",address:"Magdalen Street, NR3",area:"Magdalen Street",lat:52.6342,lng:1.2968,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:101,name:"The Blue Boar",address:"St Giles Street, NR2 1LL",area:"City Centre",lat:52.6285,lng:1.2930,ale:true,food:false,historic:true,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:102,name:"The Refreshers",address:"1 St Giles Street, NR2 1JJ",area:"City Centre",lat:52.6283,lng:1.2935,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:103,name:"The Rock",address:"13 St Benedicts Street, NR2 4PE",area:"St Benedicts",lat:52.6266,lng:1.2900,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:104,name:"The Trafford Arms (Grove Road)",address:"61 Grove Road, NR1 3RP",area:"Golden Triangle",lat:52.6225,lng:1.2865,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:105,name:"The Miike",address:"1 St John Maddermarket, NR2 1DN",area:"City Centre",lat:52.6278,lng:1.2938,ale:false,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:106,name:"The Jubilee Tavern",address:"St Leonards Road, NR1",area:"Golden Triangle",lat:52.6210,lng:1.2855,ale:true,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:107,name:"The Fat Cat & Canary",address:"Thorpe Road, NR1",area:"Riverside",lat:52.6255,lng:1.3018,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:108,name:"The Waterworks",address:"Waterworks Road, NR2",area:"Golden Triangle",lat:52.6218,lng:1.2832,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:109,name:"The Spread Eagle",address:"Upper Westwick Street, NR2 4SB",area:"St Benedicts",lat:52.6270,lng:1.2905,ale:true,food:false,historic:true,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:110,name:"The Shades",address:"Chapel Field Road, NR2",area:"City Centre",lat:52.6265,lng:1.2905,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:111,name:"The Lollards Pit",address:"Riverside Road, NR1 1SR",area:"Riverside",lat:52.6260,lng:1.3005,ale:true,food:true,historic:true,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:112,name:"The Clarence",address:"Clarence Road, NR1",area:"Riverside",lat:52.6248,lng:1.3012,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:113,name:"The Trafford Arms (Dereham Road)",address:"Dereham Road, NR2",area:"Earlham",lat:52.6228,lng:1.2792,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:114,name:"The Porters Arms",address:"St Augustines Street, NR3",area:"Magdalen Street",lat:52.6365,lng:1.2922,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:115,name:"The Woolpack",address:"Golden Ball Street, NR1 3RF",area:"City Centre",lat:52.6268,lng:1.2958,ale:true,food:false,historic:true,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:116,name:"The Garnet",address:"Cherry Lane, NR1",area:"Riverside",lat:52.6252,lng:1.3022,ale:false,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:117,name:"The Tap Room",address:"Barrack Street, NR3 1TX",area:"Cathedral Quarter",lat:52.6328,lng:1.2975,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:118,name:"The Glasshouse",address:"Thorpe Road, NR1",area:"Riverside",lat:52.6255,lng:1.3025,ale:false,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:119,name:"The Mad Cat",address:"NR3",area:"Magdalen Street",lat:52.6362,lng:1.2960,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:120,name:"The Erpingham Gate",address:"Tombland, NR3 1HF",area:"Cathedral Quarter",lat:52.6315,lng:1.3020,ale:false,food:true,historic:true,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:121,name:"The Grosvenor Fish Bar",address:"Lower Goat Lane, NR2 1EL",area:"City Centre",lat:52.6288,lng:1.2940,ale:false,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:122,name:"The Black Horse (Earlham)",address:"Earlham Road, NR2",area:"Earlham",lat:52.6240,lng:1.2838,ale:true,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:123,name:"The Leopard (Sprowston Road)",address:"Sprowston Road, NR3",area:"Sprowston",lat:52.6450,lng:1.3055,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:124,name:"The Dial House",address:"39-43 St Georges Street, NR3 1AB",area:"City Centre",lat:52.6292,lng:1.2962,ale:true,food:true,historic:true,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:125,name:"The Silver Road Tavern",address:"Silver Road, NR3 4TJ",area:"New Catton",lat:52.6402,lng:1.3025,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]}
+];
+
+// ═══════════════════════════════════════════════════════════════
+// RUNTIME STATE
+// ═══════════════════════════════════════════════════════════════
+let pubs = ALL_PUBS.map(p => ({
+  ...p, visited:false, visitDate:null, notes:'', tags:[],
+  scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0}
+}));
+let activeCrawl = [];
+let leafMap = null;
+let mapMarkers = [];
+let currentTheme = 'balanced';
+
+// ═══════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════
+const CATS = ['ale','decor','location','staff','food','atmosphere','cleanliness','value','character','overall'];
+const CAT_LABELS = {ale:'Ale',decor:'Decor',location:'Location',staff:'Bar Staff',food:'Food',atmosphere:'Atmosphere',cleanliness:'Cleanliness',value:'Value',character:'Character',overall:'Overall'};
+
+function avg(pub) {
+  const vals = Object.values(pub.scores).filter(v => v > 0);
+  return vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : 0;
+}
+
+function fmtDate(d) {
+  if (!d) return '';
+  return new Date(d).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+}
+
+function getAreas() { return [...new Set(pubs.map(p=>p.area))].sort(); }
+function visitedCount() { return pubs.filter(p=>p.visited).length; }
+
+function dist(a,b) {
+  const dx=a.lat-b.lat, dy=a.lng-b.lng;
+  return Math.sqrt(dx*dx+dy*dy);
+}
+
+function toast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2200);
+}
+
+function renderDots(score) {
+  if (!score) return '<span style="font-size:10px;color:var(--muted)">Unrated</span>';
+  let h = '<div class="dots">';
+  for(let i=1;i<=10;i++) {
+    h += `<div class="dot ${i<=score ? (score>=8?'on hi':'on') : ''}"></div>`;
+  }
+  return h+'</div>';
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// ⚙️ SUPABASE CONFIG
+// Get from: supabase.com → Project → Settings → API
+// ═══════════════════════════════════════════════════════════════
+const SUPABASE_URL      = 'https://wllpyxjlwgotmzwzimjj.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndsbHB5eGpsd2dvdG16d3ppbWpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyMjE4NDYsImV4cCI6MjA5MDc5Nzg0Nn0.QSPE3bV-RKO7F2dku_MPdmBcKpCO13ijRN-MQyNgGh8';
+// ─── SQL to run in Supabase SQL Editor ──────────────────────
+/*
+create table if not exists pub_visits (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  pub_id integer not null,
+  visited boolean default false,
+  visit_date date,
+  notes text default '',
+  tags text[] default '{}',
+  score_ale int default 0, score_decor int default 0, score_location int default 0,
+  score_staff int default 0, score_food int default 0, score_atmosphere int default 0,
+  score_cleanliness int default 0, score_value int default 0,
+  score_character int default 0, score_overall int default 0,
+  updated_at timestamptz default now(),
+  unique(user_id, pub_id)
+);
+alter table pub_visits enable row level security;
+create policy "own visits" on pub_visits for all using (auth.uid()=user_id) with check (auth.uid()=user_id);
+*/
+// ─── Supabase Init ───────────────────────────────────────────
+let _sb = null, currentUser = null, isConfigured = false;
+try {
+  if (SUPABASE_URL !== 'https://wllpyxjlwgotmzwzimjj.supabase.co') {
+    _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    isConfigured = true;
+    const n = document.getElementById('setup-note');
+    if (n) n.style.display = 'none';
+  }
+} catch(e) { console.warn('Supabase init:', e); }
+
+// ─── Auth Tab Switch ─────────────────────────────────────────
+function switchTab(tab) {
+  const tabs = ['signin','signup','forgot'];
+  tabs.forEach((t,i) => {
+    document.getElementById('tab-'+t).style.display = t===tab?'':'none';
+    const btn = document.querySelectorAll('.auth-tab')[i];
+    if (btn) btn.classList.toggle('active', t===tab&&tab!=='forgot');
+  });
+}
+
+function showAuthMsg(id, msg, isErr) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = msg; el.style.display = 'block';
+  if (isErr) setTimeout(() => el.style.display='none', 5000);
+}
+
+async function signIn() {
+  if (!isConfigured) { skipAuth(); return; }
+  const email = document.getElementById('si-email').value.trim();
+  const pass = document.getElementById('si-pass').value;
+  if (!email || !pass) { showAuthMsg('si-err','Please enter email and password.',true); return; }
+  const btn = document.getElementById('si-btn');
+  btn.disabled=true; btn.textContent='Signing in...';
+  try {
+    const { error } = await _sb.auth.signInWithPassword({ email, password: pass });
+    if (error) throw error;
+  } catch(e) {
+    showAuthMsg('si-err', e.message||'Sign in failed.', true);
+    btn.disabled=false; btn.textContent='Sign In →';
+  }
+}
+
+async function signUp() {
+  if (!isConfigured) { skipAuth(); return; }
+  const name = document.getElementById('su-name').value.trim();
+  const email = document.getElementById('su-email').value.trim();
+  const pass = document.getElementById('su-pass').value;
+  if (!name) { showAuthMsg('su-err','Please enter a display name.',true); return; }
+  if (!email) { showAuthMsg('su-err','Please enter your email.',true); return; }
+  if (pass.length < 6) { showAuthMsg('su-err','Password must be at least 6 characters.',true); return; }
+  const btn = document.getElementById('su-btn');
+  btn.disabled=true; btn.textContent='Creating...';
+  try {
+    const { data, error } = await _sb.auth.signUp({ email, password: pass, options:{ data:{ display_name: name } } });
+    if (error) throw error;
+    if (data.user && !data.session) {
+      showAuthMsg('su-ok','✓ Check your email to confirm, then sign in.', false);
+      btn.disabled=false; btn.textContent='Create Account →';
+    }
+  } catch(e) {
+    showAuthMsg('su-err', e.message||'Sign up failed.', true);
+    btn.disabled=false; btn.textContent='Create Account →';
+  }
+}
+
+async function sendReset() {
+  if (!isConfigured) { showAuthMsg('fp-err','Supabase not configured.',true); return; }
+  const email = document.getElementById('fp-email').value.trim();
+  if (!email) { showAuthMsg('fp-err','Please enter your email.',true); return; }
+  const btn = document.getElementById('fp-btn');
+  btn.disabled=true; btn.textContent='Sending...';
+  try {
+    const { error } = await _sb.auth.resetPasswordForEmail(email);
+    if (error) throw error;
+    showAuthMsg('fp-ok','✓ Reset link sent! Check your inbox.', false);
+  } catch(e) { showAuthMsg('fp-err', e.message, true); }
+  btn.disabled=false; btn.textContent='Send Reset Link →';
+}
+
+function skipAuth() {
+  // Offline/local mode — bypass auth
+  document.getElementById('auth-screen').style.display='none';
+  document.getElementById('app').style.display='flex';
+  setUserUI('Local Mode','No account · data saved locally','LM');
+  setSyncDot('offline');
+  loadOfflineData();
+  renderDash(); updateSidebar(); buildCrawlAreas();
+}
+
+async function doSignOut() {
+  if (_sb) await _sb.auth.signOut();
+  currentUser = null;
+  resetPubs();
+  document.getElementById('app').style.display='none';
+  document.getElementById('auth-screen').style.display='flex';
+}
+
+// ─── Supabase auth state ─────────────────────────────────────
+if (isConfigured) {
+  _sb.auth.onAuthStateChange(async (event, session) => {
+    if (session?.user) {
+      currentUser = session.user;
+      const name = currentUser.user_metadata?.display_name || currentUser.email.split('@')[0];
+      await loadCloudData();
+      document.getElementById('auth-screen').style.display='none';
+      document.getElementById('app').style.display='flex';
+      setUserUI(name, currentUser.email, name.slice(0,2).toUpperCase());
+      setSyncDot('online');
+      renderDash(); updateSidebar(); buildCrawlAreas();
+    }
+  });
+  // Check existing session on load
+  _sb.auth.getSession().then(({ data: { session } }) => {
+    if (!session) {
+      // Stay on auth screen
+    }
+  });
+} else {
+  // Auto-boot offline if no Supabase
+  skipAuth();
+}
+
+// ─── User UI helpers ─────────────────────────────────────────
+function setUserUI(name, email, initials) {
+  document.getElementById('user-avatar').textContent = initials;
+  document.getElementById('user-name-sb').textContent = name;
+  document.getElementById('user-email-sb').textContent = email;
+  const pa = document.getElementById('profile-avatar');
+  const pn = document.getElementById('profile-name-disp');
+  const pe = document.getElementById('profile-email-disp');
+  const pi = document.getElementById('profile-name-inp');
+  if (pa) pa.textContent = initials;
+  if (pn) pn.textContent = name;
+  if (pe) pe.textContent = email;
+  if (pi) pi.value = name;
+}
+
+function setSyncDot(state) {
+  const d = document.getElementById('sync-dot');
+  if (!d) return;
+  d.className = 'sync-dot' + (state==='offline'?' offline':state==='saving'?' saving':'');
+}
+
+async function updateProfile() {
+  const name = document.getElementById('profile-name-inp')?.value.trim();
+  if (!name) return;
+  if (_sb && currentUser) await _sb.auth.updateUser({ data: { display_name: name } });
+  setUserUI(name, currentUser?.email||'', name.slice(0,2).toUpperCase());
+  toast('✓ Name updated');
+}
+
+async function forceSyncDown() {
+  if (!isConfigured || !currentUser) { loadOfflineData(); renderDash(); updateSidebar(); toast('↓ Reloaded'); return; }
+  await loadCloudData(); renderDash(); updateSidebar(); toast('✓ Reloaded from cloud');
+}
+
+// ─── Cloud data sync ─────────────────────────────────────────
+async function loadCloudData() {
+  if (!_sb || !currentUser) return;
+  setSyncDot('saving');
+  try {
+    // Load private visit data (notes, visited, tags) for this user
+    const { data: visits, error: ve } = await _sb
+      .from('pub_visits').select('*').eq('user_id', currentUser.id);
+    if (ve) throw ve;
+
+    // Load community-averaged scores for ALL pubs (publicly readable)
+    const { data: scores, error: se } = await _sb
+      .from('pub_score_averages').select('*');
+    if (se) throw se;
+
+    // Load THIS user's own scores so their sliders show their own ratings
+    const { data: myScores, error: me } = await _sb
+      .from('pub_scores').select('*').eq('user_id', currentUser.id);
+    if (me) throw me;
+
+    resetPubs();
+    if (visits)   visits.forEach(d   => applyVisitRow(d));
+    if (myScores) myScores.forEach(d => applyMyScores(d));
+    if (scores)   scores.forEach(d   => applyCommunityScores(d));
+    setSyncDot('online');
+  } catch(e) { console.warn('Load error:', e); setSyncDot('offline'); }
+}
+
+// Private visit data (notes, visited status, tags) — only this user's
+function applyVisitRow(d) {
+  const p = pubs.find(x => x.id === d.pub_id);
+  if (!p) return;
+  p.visited   = d.visited || false;
+  p.visitDate = d.visit_date || null;
+  p.notes     = d.notes || '';
+  p.tags      = Array.isArray(d.tags) ? d.tags : [];
+}
+
+// This user's own individual scores (shown in sliders when rating)
+function applyMyScores(d) {
+  const p = pubs.find(x => x.id === d.pub_id);
+  if (!p) return;
+  p.myScores = {
+    ale:d.score_ale||0, decor:d.score_decor||0, location:d.score_location||0,
+    staff:d.score_staff||0, food:d.score_food||0, atmosphere:d.score_atmosphere||0,
+    cleanliness:d.score_cleanliness||0, value:d.score_value||0,
+    character:d.score_character||0, overall:d.score_overall||0
+  };
+}
+
+// Community-averaged scores (shown on pub cards, leaderboard, stats)
+function applyCommunityScores(d) {
+  const p = pubs.find(x => x.id === d.pub_id);
+  if (!p) return;
+  p.scores = {
+    ale:parseFloat(d.avg_ale)||0, decor:parseFloat(d.avg_decor)||0,
+    location:parseFloat(d.avg_location)||0, staff:parseFloat(d.avg_staff)||0,
+    food:parseFloat(d.avg_food)||0, atmosphere:parseFloat(d.avg_atmosphere)||0,
+    cleanliness:parseFloat(d.avg_cleanliness)||0, value:parseFloat(d.avg_value)||0,
+    character:parseFloat(d.avg_character)||0, overall:parseFloat(d.avg_overall)||0
+  };
+  p.ratingCount = parseInt(d.rating_count) || 0;
+}
+
+// Compatibility alias for offline seed
+function applyRow(d) {
+  applyVisitRow(d);
+  if (d.score_ale !== undefined) applyMyScores(d);
+}
+
+function loadOfflineData() {
+  try {
+    const saved = localStorage.getItem('norwich-pubs-offline');
+    if (saved) JSON.parse(saved).forEach(d => applyRow(d));
+    else { seedDemo(); saveOffline(); }
+  } catch(e) {}
+}
+
+function saveOffline() {
+  const data = pubs.filter(p => p.visited||p.notes||Object.values(p.scores).some(v=>v>0)).map(p => ({
+    pub_id:p.id, visited:p.visited, visit_date:p.visitDate, notes:p.notes, tags:p.tags,
+    score_ale:p.scores.ale, score_decor:p.scores.decor, score_location:p.scores.location,
+    score_staff:p.scores.staff, score_food:p.scores.food, score_atmosphere:p.scores.atmosphere,
+    score_cleanliness:p.scores.cleanliness, score_value:p.scores.value,
+    score_character:p.scores.character, score_overall:p.scores.overall
+  }));
+  localStorage.setItem('norwich-pubs-offline', JSON.stringify(data));
+}
+
+async function savePub(pub) {
+  if (!isConfigured || !currentUser) { saveOffline(); return; }
+  setSyncDot('saving');
+  try {
+    // Save private data (visited, notes, tags) → pub_visits
+    const visitRow = {
+      user_id: currentUser.id, pub_id: pub.id,
+      visited: pub.visited, visit_date: pub.visitDate,
+      notes: pub.notes, tags: pub.tags,
+      updated_at: new Date().toISOString()
+    };
+    const { error: ve } = await _sb.from('pub_visits')
+      .upsert(visitRow, { onConflict: 'user_id,pub_id' });
+    if (ve) throw ve;
+
+    // Save this user's scores → pub_scores (shared, averaged with others)
+    const ms = pub.myScores || pub.scores;
+    if (ms && Object.values(ms).some(v => v > 0)) {
+      const scoreRow = {
+        user_id: currentUser.id, pub_id: pub.id,
+        score_ale: ms.ale||0, score_decor: ms.decor||0,
+        score_location: ms.location||0, score_staff: ms.staff||0,
+        score_food: ms.food||0, score_atmosphere: ms.atmosphere||0,
+        score_cleanliness: ms.cleanliness||0, score_value: ms.value||0,
+        score_character: ms.character||0, score_overall: ms.overall||0,
+        updated_at: new Date().toISOString()
+      };
+      const { error: se } = await _sb.from('pub_scores')
+        .upsert(scoreRow, { onConflict: 'user_id,pub_id' });
+      if (se) throw se;
+    }
+
+    setSyncDot('online');
+  } catch(e) { console.warn('Save error:', e); setSyncDot('offline'); toast('⚠ Save failed'); }
+}
+
+function resetPubs() {
+  pubs.forEach(p => {
+    p.visited=false; p.visitDate=null; p.notes=''; p.tags=[]; p.ratingCount=0;
+    p.scores={ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0};
+    p.myScores={ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0};
+  });
+}
+
+function seedDemo() {
+  const demos=[
+    {pub_id:27,visited:true,visit_date:'2025-11-14',notes:'Brilliant riverside pub. Best pub setting in Norwich.',tags:[],score_ale:9,score_decor:8,score_location:9,score_staff:9,score_food:8,score_atmosphere:9,score_cleanliness:8,score_value:8,score_character:9,score_overall:9},
+    {pub_id:41,visited:true,visit_date:'2025-11-20',notes:'The Fat Cat. 31 handpumps. Norwich institution.',tags:['great ale'],score_ale:10,score_decor:7,score_location:6,score_staff:9,score_food:0,score_atmosphere:9,score_cleanliness:8,score_value:9,score_character:9,score_overall:9},
+    {pub_id:43,visited:true,visit_date:'2025-12-01',notes:'Consistently great free house.',tags:[],score_ale:9,score_decor:7,score_location:6,score_staff:8,score_food:0,score_atmosphere:8,score_cleanliness:7,score_value:9,score_character:8,score_overall:8},
+    {pub_id:30,visited:true,visit_date:'2026-01-04',notes:'Stunning thatched building on Elm Hill.',tags:['good for food'],score_ale:0,score_decor:10,score_location:9,score_staff:8,score_food:9,score_atmosphere:9,score_cleanliness:9,score_value:7,score_character:10,score_overall:9}
+  ];
+  demos.forEach(d => {
+    applyVisitRow(d);
+    applyMyScores(d);
+    // In offline mode, community score = own score
+    applyCommunityScores({
+      pub_id:d.pub_id, rating_count:1,
+      avg_ale:d.score_ale, avg_decor:d.score_decor, avg_location:d.score_location,
+      avg_staff:d.score_staff, avg_food:d.score_food, avg_atmosphere:d.score_atmosphere,
+      avg_cleanliness:d.score_cleanliness, avg_value:d.score_value,
+      avg_character:d.score_character, avg_overall:d.score_overall
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════════
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.mob-btn').forEach(n => n.classList.remove('active'));
+  const idx = {dashboard:0,pubs:1,map:2,crawl:3,stats:4}[name];
+  document.querySelectorAll('.nav-item')[idx]?.classList.add('active');
+  document.querySelectorAll('.mob-btn')[idx]?.classList.add('active');
+
+  if (name==='map') initMap();
+  if (name==='dashboard') renderDash();
+  if (name==='pubs') renderPubs();
+  if (name==='stats') renderStats();
+  if (name==='crawl') buildCrawlAreas();
+  updateSidebar();
+}
+
+function updateSidebar() {
+  const v=visitedCount(), t=pubs.length, pct=Math.round(v/t*100);
+  document.getElementById('sb-prog-label').textContent = `${v} of ${t} visited`;
+  document.getElementById('sb-prog-pct').textContent = pct+'%';
+  document.getElementById('sb-prog-fill').style.width = pct+'%';
+  document.getElementById('nav-total').textContent = t;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════════════
+function renderDash() {
+  const v=visitedCount(), t=pubs.length, pct=Math.round(v/t*100);
+  const rated=pubs.filter(p=>avg(p)>0);
+  const avgAll = rated.length ? (rated.reduce((a,b)=>a+avg(b),0)/rated.length).toFixed(1) : '—';
+
+  document.getElementById('dash-sub').textContent = pct>=100
+    ? '🎉 NORWICH CONQUERED — You\'ve visited every pub!'
+    : `${t-v} pubs still to discover · ${pct}% complete`;
+
+  document.getElementById('dash-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Visited</div><div class="stat-value">${v}</div><div class="stat-sub">of ${t} pubs</div></div>
+    <div class="stat-card"><div class="stat-label">Remaining</div><div class="stat-value">${t-v}</div><div class="stat-sub">to discover</div></div>
+    <div class="stat-card accent"><div class="stat-label">Progress</div><div class="stat-value">${pct}%</div><div class="stat-sub">complete</div></div>
+    <div class="stat-card"><div class="stat-label">Avg Score</div><div class="stat-value">${avgAll}</div><div class="stat-sub">across ${rated.length} rated</div></div>
+    <div class="stat-card"><div class="stat-label">Real Ale</div><div class="stat-value">${pubs.filter(p=>p.ale).length}</div><div class="stat-sub">ale pubs</div></div>
+    <div class="stat-card"><div class="stat-label">Areas</div><div class="stat-value">${getAreas().length}</div><div class="stat-sub">distinct areas</div></div>
+  `;
+
+  const top = [...pubs].filter(p=>avg(p)>0).sort((a,b)=>avg(b)-avg(a)).slice(0,8);
+  document.getElementById('top-rated').innerHTML = top.length ? top.map((p,i)=>`
+    <div class="lb-item" onclick="openModal(${p.id})">
+      <span class="lb-medal">${['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣'][i]||'•'}</span>
+      <div style="flex:1"><div class="lb-name">${p.name}</div><div class="lb-area">${p.area}</div></div>
+      <span class="lb-score">${avg(p).toFixed(1)}</span>
+    </div>`).join('') : '<div style="color:var(--muted);font-size:12px;padding:10px 0">Rate some pubs to see rankings</div>';
+
+  const recent = [...pubs].filter(p=>p.visited&&p.visitDate).sort((a,b)=>new Date(b.visitDate)-new Date(a.visitDate)).slice(0,6);
+  document.getElementById('recent-visits').innerHTML = recent.length ? recent.map(p=>`
+    <div class="lb-item" onclick="openModal(${p.id})">
+      <div style="flex:1"><div class="lb-name">${p.name}</div><div class="lb-area">${fmtDate(p.visitDate)} · ${p.area}</div></div>
+      <span class="badge badge-green">✓</span>
+    </div>`).join('') : '<div style="color:var(--muted);font-size:12px;padding:10px 0">No visits yet — get out there!</div>';
+
+  const unvis = pubs.filter(p=>!p.visited).slice(0,6);
+  document.getElementById('dash-unvisited').innerHTML = unvis.map(p=>pubCardHTML(p)).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PUB LIST
+// ═══════════════════════════════════════════════════════════════
+function renderPubs() {
+  const af = document.getElementById('area-f');
+  if (af.options.length <= 1) {
+    getAreas().forEach(a => { const o=document.createElement('option'); o.value=a; o.textContent=a; af.appendChild(o); });
+  }
+  const q = document.getElementById('search').value.toLowerCase();
+  const area = af.value;
+  const vis = document.getElementById('vis-f').value;
+  const srt = document.getElementById('sort-f').value;
+  const typ = document.getElementById('type-f').value;
+
+  let list = pubs.filter(p => {
+    if (q && !p.name.toLowerCase().includes(q) && !p.area.toLowerCase().includes(q) && !p.address.toLowerCase().includes(q)) return false;
+    if (area && p.area !== area) return false;
+    if (vis==='v' && !p.visited) return false;
+    if (vis==='u' && p.visited) return false;
+    if (typ==='ale' && !p.ale) return false;
+    if (typ==='food' && !p.food) return false;
+    if (typ==='hist' && !p.historic) return false;
+    return true;
+  });
+
+  if (srt==='alpha') list.sort((a,b)=>a.name.localeCompare(b.name));
+  if (srt==='score') list.sort((a,b)=>avg(b)-avg(a));
+  if (srt==='area') list.sort((a,b)=>a.area.localeCompare(b.area)||a.name.localeCompare(b.name));
+  if (srt==='vis') list.sort((a,b)=>(b.visited?1:0)-(a.visited?1:0));
+
+  document.getElementById('pubs-count').textContent = `${list.length} pubs shown · ${pubs.length} total`;
+  document.getElementById('pub-list').innerHTML = list.map(p=>pubCardHTML(p)).join('');
+}
+
+function pubCardHTML(p) {
+  const sc = avg(p);
+  const inC = activeCrawl.includes(p.id);
+  return `<div class="pub-card${p.visited?' visited':''}${inC?' in-crawl':''}" onclick="openModal(${p.id})">
+    <div class="pub-card-top"><div class="pub-name">${p.name}</div><span class="area-badge">${p.area}</span></div>
+    <div class="pub-addr">${p.address}</div>
+    <div class="pub-tags">
+      ${p.visited?'<span class="tag tag-visited">✓ Visited</span>':'<span class="tag tag-unvisited">Not visited</span>'}
+      ${p.ale?'<span class="tag tag-ale">Real Ale</span>':''}
+      ${p.food?'<span class="tag tag-food">Food</span>':''}
+      ${p.historic?'<span class="tag tag-historic">Historic</span>':''}
+    </div>
+    <div class="pub-score-row">${renderDots(Math.round(sc))}${sc>0?`<span class="score-num">${sc.toFixed(1)}</span>`:'<span style="font-size:10px;color:var(--muted)">Unrated</span>'}</div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MAP
+// ═══════════════════════════════════════════════════════════════
+function initMap() {
+  if (leafMap) { leafMap.invalidateSize(); refreshMarkers(); return; }
+  leafMap = L.map('map',{zoomControl:true}).setView([52.628,1.298],14);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(leafMap);
+  refreshMarkers();
+}
+
+function refreshMarkers() {
+  mapMarkers.forEach(m=>m.remove()); mapMarkers=[];
+  pubs.forEach(p => {
+    const inC = activeCrawl.includes(p.id);
+    const col = inC ? '#6aabff' : p.visited ? '#5ec44a' : '#e8c832';
+    const sz = inC ? 16 : 11;
+    const icon = L.divIcon({
+      html:`<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${col};border:2px solid ${inC?'#fff':col};box-shadow:0 0 ${inC?8:4}px ${col}60"></div>`,
+      className:'',iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]
+    });
+    const sc = avg(p);
+    const m = L.marker([p.lat,p.lng],{icon}).addTo(leafMap);
+    m.bindPopup(`<div style="font-family:sans-serif;min-width:160px">
+      <strong style="font-size:13px">${p.name}</strong><br>
+      <span style="color:#888;font-size:11px">${p.area}</span><br>
+      ${sc>0?`<span style="color:#e8c832;font-size:11px">★ ${sc.toFixed(1)}/10</span><br>`:''}
+      ${p.visited?'<span style="color:#5ec44a;font-size:11px">✓ Visited</span>':''}<br>
+      <a href="#" onclick="openModal(${p.id});return false" style="color:#5ec44a;font-size:11px">Details →</a>
+    </div>`);
+    mapMarkers.push(m);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CRAWL PLANNER
+// ═══════════════════════════════════════════════════════════════
+function buildCrawlAreas() {
+  const g = document.getElementById('crawl-area-group');
+  if (g.children.length <= 1) {
+    getAreas().forEach(a => {
+      const b=document.createElement('button'); b.className='opt-btn'; b.dataset.val=a; b.textContent=a;
+      b.onclick=function(){pickOpt(this,'crawl-area-group');}; g.appendChild(b);
+    });
+  }
+}
+
+function pickOpt(el, gid) {
+  document.getElementById(gid).querySelectorAll('.opt-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function pickTheme(el) {
+  document.querySelectorAll('[data-theme]').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  currentTheme = el.dataset.theme;
+}
+
+function generateCrawl() {
+  const n = parseInt(document.getElementById('crawl-n').value);
+  const area = document.getElementById('crawl-area-group').querySelector('.opt-btn.active')?.dataset.val||'';
+  const pri = document.getElementById('crawl-pri-group').querySelector('.opt-btn.active')?.dataset.val||'score';
+
+  let pool = [...pubs];
+  if (area) pool=pool.filter(p=>p.area===area);
+  if (currentTheme==='ale') pool=pool.filter(p=>p.ale);
+  if (currentTheme==='food') pool=pool.filter(p=>p.food);
+  if (currentTheme==='historic') pool=pool.filter(p=>p.historic);
+  if (currentTheme==='unvisited') pool=pool.filter(p=>!p.visited);
+
+  pool.sort((a,b)=>{
+    let sa=avg(a),sb=avg(b);
+    if (currentTheme==='ale') {sa=a.scores.ale;sb=b.scores.ale;}
+    else if (currentTheme==='food') {sa=a.scores.food;sb=b.scores.food;}
+    else if (currentTheme==='atmosphere') {sa=a.scores.atmosphere;sb=b.scores.atmosphere;}
+    if (pri==='unvisited') {sa+=(a.visited?0:2);sb+=(b.visited?0:2);}
+    return sb-sa;
+  });
+
+  if (pool.length < 2) {
+    document.getElementById('crawl-empty').style.display='block';
+    document.getElementById('crawl-result').classList.add('hidden');
+    return;
+  }
+
+  const cands = pool.slice(0, Math.min(n*4, pool.length));
+  let selected = [cands[0]];
+  const rem = [...cands.slice(1)];
+  while (selected.length < n && rem.length > 0) {
+    if (pri==='close') {
+      const last=selected[selected.length-1];
+      rem.sort((a,b)=>dist(last,a)-dist(last,b));
+    }
+    selected.push(rem.shift());
+  }
+
+  activeCrawl = selected.map(p=>p.id);
+  document.getElementById('crawl-empty').style.display='none';
+  document.getElementById('crawl-result').classList.remove('hidden');
+
+  document.getElementById('crawl-list').innerHTML = selected.map((p,i)=>`
+    <div class="crawl-stop${p.visited?' done':''}" onclick="openModal(${p.id})">
+      <div class="stop-num">${i+1}</div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:700;color:var(--heading)">${p.name}</div>
+        <div style="font-size:11px;color:var(--muted)">${p.area} · ${p.address}</div>
+      </div>
+      <div style="text-align:right">
+        ${avg(p)>0?`<div style="font-size:12px;color:var(--yellow-light);font-weight:700">${avg(p).toFixed(1)}</div>`:''}
+        <div style="font-size:10px;color:${p.visited?'var(--green-light)':'var(--muted)'}">${p.visited?'✓ done':'unvisited'}</div>
+      </div>
+    </div>`).join('');
+
+  const newPubs = selected.filter(p=>!p.visited).length;
+  document.getElementById('crawl-sum').innerHTML = `<strong style="color:var(--heading)">${selected.length} pubs</strong> · Area: <strong style="color:var(--green-light)">${area||'All Norwich'}</strong> · Theme: ${currentTheme} · <strong style="color:var(--yellow-light)">${newPubs} new</strong> pubs to discover 🍺`;
+  toast(`Route generated! ${selected.length} pubs ready.`);
+}
+
+function clearCrawl() {
+  activeCrawl=[];
+  document.getElementById('crawl-empty').style.display='block';
+  document.getElementById('crawl-result').classList.add('hidden');
+}
+
+async function markCrawlDone() {
+  for (const id of activeCrawl) {
+    const p=pubs.find(x=>x.id===id);
+    if(p&&!p.visited){p.visited=true;p.visitDate=new Date().toISOString().split('T')[0]; await savePub(p);}
+  }
+  updateSidebar(); toast('✓ Marked all crawl pubs as visited!');
+  if(visitedCount()===pubs.length) setTimeout(showCelebration,400);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PUB MODAL
+// ═══════════════════════════════════════════════════════════════
+function openModal(id) {
+  const p = pubs.find(x=>x.id===id);
+  if (!p) return;
+  const sc = avg(p);
+
+  document.getElementById('modal-body').innerHTML = `
+    <div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:4px">
+      <div style="flex:1">
+        <div class="modal-title">${p.name}</div>
+        <div class="modal-sub">${p.address} · ${p.area}</div>
+      </div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;padding-top:2px">
+        ${p.ale?'<span class="badge badge-yellow">Real Ale</span>':''}
+        ${p.food?'<span class="badge badge-green">Food</span>':''}
+        ${p.historic?'<span class="badge" style="background:rgba(180,130,50,.15);color:#d4b060;border:1px solid rgba(180,130,50,.25)">Historic</span>':''}
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+      <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:12px;font-weight:600">
+        <input type="checkbox" id="vtog" ${p.visited?'checked':''} onchange="toggleVisited(${id})" style="width:15px;height:15px;accent-color:var(--green)">
+        <span id="vtog-label" style="color:${p.visited?'var(--green-light)':'var(--text2)'}">${p.visited?'Visited '+fmtDate(p.visitDate):'Not yet visited'}</span>
+      </label>
+      ${sc>0?`<span style="font-size:20px;font-weight:800;color:var(--yellow-light)">${sc.toFixed(1)}<span style="font-size:11px;color:var(--muted)">/10</span></span>`:''}
+    </div>
+
+    <div class="div"></div>
+    <div class="sec-title" style="margin-bottom:10px;font-size:14px">📝 Rate This Pub</div>
+    <div class="score-grid">
+      ${CATS.map(c=>{const myVal=(p.myScores||{})[c]||0; const cAvg=p.scores[c]||0; return `
+        <div class="score-item">
+          <label>${CAT_LABELS[c]}${cAvg>0?` <span style="font-size:9px;color:var(--muted)">avg ${cAvg.toFixed?cAvg.toFixed(1):cAvg}</span>`:""}</label>
+          <div class="score-row">
+            <input type="range" min="0" max="10" value="${myVal}" id="sc-${c}-${id}"
+              oninput="document.getElementById('sv-${c}-${id}').textContent=this.value;updateScore(${id},'${c}',this.value)">
+            <span class="score-val" id="sv-${c}-${id}">${myVal}</span>
+          </div>
+        </div>`;}).join('')}
+    </div>
+
+    <div class="div"></div>
+    <div class="sec-title" style="margin-bottom:8px;font-size:14px">📓 Notes</div>
+    <textarea id="notes-${id}" rows="3" placeholder="Your thoughts on this pub...">${p.notes}</textarea>
+    <div class="tag-row">
+      ${['Great ale','Would return','Good for food','Tourist-heavy','Hidden gem','Dog-friendly'].map(t=>`
+        <button class="opt-btn${p.tags.includes(t.toLowerCase())?'  active':''}" onclick="toggleTag(${id},'${t.toLowerCase()}')">${t}</button>`).join('')}
+    </div>
+
+    <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:14px">
+      <button class="btn btn-primary" onclick="savePubData(${id})">💾 Save</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Close</button>
+      <button class="btn btn-success btn-sm" onclick="toggleVisited(${id})">${p.visited?'↩ Mark Unvisited':'✓ Mark Visited'}</button>
+    </div>
+
+    ${sc>0?`
+    <div class="div"></div>
+    <div class="sec-title" style="margin-bottom:10px;font-size:14px">📊 Community Average</div>
+    <div style="font-size:10px;color:var(--muted);margin-bottom:8px">${p.ratingCount||1} rating${(p.ratingCount||1)!==1?'s':''} from the community</div>
+    ${CATS.filter(c=>p.scores[c]>0).map(c=>`
+      <div class="bar-wrap">
+        <div class="bar-label"><span>${CAT_LABELS[c]}</span><span style="color:var(--yellow-light)">${p.scores[c]%1!==0?p.scores[c].toFixed(1):p.scores[c]}/10</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${p.scores[c]*10}%"></div></div>
+      </div>`).join('')}`:''}
+  `;
+
+  document.getElementById('modal-overlay').classList.remove('hidden');
+}
+
+function closeModal() { document.getElementById('modal-overlay').classList.add('hidden'); }
+function maybeClose(e) { if(e.target===document.getElementById('modal-overlay')) closeModal(); }
+
+async function toggleVisited(id) {
+  const p=pubs.find(x=>x.id===id);
+  p.visited=!p.visited;
+  p.visitDate=p.visited?new Date().toISOString().split('T')[0]:null;
+  const lbl=document.getElementById('vtog-label');
+  if(lbl){lbl.textContent=p.visited?'Visited '+fmtDate(p.visitDate):'Not yet visited';lbl.style.color=p.visited?'var(--green-light)':'var(--text2)';}
+  const cb=document.getElementById('vtog');
+  if(cb) cb.checked=p.visited;
+  await savePub(p); updateSidebar();
+  if(leafMap) refreshMarkers();
+  if(p.visited && visitedCount()===pubs.length) setTimeout(showCelebration,400);
+  toast(p.visited?`✓ ${p.name} visited!`:'↩ Marked unvisited');
+}
+
+function updateScore(id,cat,val) {
+  const p=pubs.find(x=>x.id===id);
+  if(!p.myScores) p.myScores={ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0};
+  p.myScores[cat]=parseInt(val);
+}
+
+function toggleTag(id,tag) {
+  const p=pubs.find(x=>x.id===id);
+  const i=p.tags.indexOf(tag);
+  if(i>=0) p.tags.splice(i,1); else p.tags.push(tag);
+  document.querySelectorAll('.tag-row .opt-btn').forEach(b=>{
+    if(b.textContent.toLowerCase()===tag) b.classList.toggle('active',p.tags.includes(tag));
+  });
+}
+
+async function savePubData(id) {
+  const p=pubs.find(x=>x.id===id);
+  const n=document.getElementById('notes-'+id);
+  if(n) p.notes=n.value;
+  await savePub(pub);
+  const btn=event.target;
+  btn.textContent='✓ Saved!';
+  btn.style.background='var(--green)';
+  btn.style.color='#0a1a07';
+  setTimeout(()=>{btn.textContent='💾 Save';btn.style.background='';btn.style.color='';},1600);
+  renderDash(); updateSidebar();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STATS
+// ═══════════════════════════════════════════════════════════════
+function renderStats() {
+  const v=visitedCount(),t=pubs.length;
+  const rated=pubs.filter(p=>avg(p)>0);
+  const best=rated.length?[...rated].sort((a,b)=>avg(b)-avg(a))[0]:null;
+
+  document.getElementById('stats-top').innerHTML=`
+    <div class="stat-card"><div class="stat-label">Visited</div><div class="stat-value">${v} / ${t}</div><div class="stat-sub">${Math.round(v/t*100)}% complete</div></div>
+    <div class="stat-card"><div class="stat-label">Rated</div><div class="stat-value">${rated.length}</div><div class="stat-sub">of ${v} visited</div></div>
+    <div class="stat-card accent"><div class="stat-label">Top Pub</div><div class="stat-value" style="font-size:16px">${best?avg(best).toFixed(1):'—'}</div><div class="stat-sub">${best?best.name.slice(0,22):''}</div></div>
+    <div class="stat-card"><div class="stat-label">Areas Covered</div><div class="stat-value">${new Set(pubs.filter(p=>p.visited).map(p=>p.area)).size}</div><div class="stat-sub">of ${getAreas().length} areas</div></div>
+  `;
+
+  const top15=[...pubs].filter(p=>avg(p)>0).sort((a,b)=>avg(b)-avg(a)).slice(0,15);
+  document.getElementById('stats-lb').innerHTML = top15.length ? top15.map((p,i)=>`
+    <div class="lb-item" onclick="openModal(${p.id})">
+      <span class="lb-rank" style="${i<3?'color:var(--yellow-light)':''}">${i+1}</span>
+      <div style="flex:1"><div class="lb-name">${p.name}</div><div class="lb-area">${p.area}</div></div>
+      <span class="lb-score">${avg(p).toFixed(1)}</span>
+    </div>`).join('') : '<div style="color:var(--muted);font-size:12px;padding:10px 0">Rate pubs to see the leaderboard</div>';
+
+  const catAvgs = CATS.map(c=>{
+    const vals=pubs.map(p=>p.scores[c]).filter(v=>v>0);
+    return {c,a:vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:0};
+  });
+  document.getElementById('stats-cats').innerHTML = catAvgs.map(x=>`
+    <div class="bar-wrap" style="margin-bottom:9px">
+      <div class="bar-label"><span>${CAT_LABELS[x.c]}</span><span>${x.a>0?x.a.toFixed(1):'—'}</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${x.a*10}%"></div></div>
+    </div>`).join('');
+
+  const areaStats=getAreas().map(a=>{
+    const ap=pubs.filter(p=>p.area===a);
+    return {a,total:ap.length,vis:ap.filter(p=>p.visited).length};
+  }).sort((a,b)=>b.vis-a.vis);
+  document.getElementById('stats-areas').innerHTML=areaStats.map(x=>`
+    <div class="area-card">
+      <div class="area-name">${x.a}</div>
+      <div class="area-count">${x.vis} / ${x.total} visited · ${Math.round(x.vis/x.total*100)}%</div>
+      <div class="prog-track"><div class="prog-fill" style="width:${Math.round(x.vis/x.total*100)}%"></div></div>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CELEBRATION
+// ═══════════════════════════════════════════════════════════════
+function showCelebration() {
+  document.getElementById('modal-body').innerHTML=`
+    <div class="celebrate">
+      <div class="celebrate-icon">🏆</div>
+      <div class="modal-title" style="text-align:center;font-size:24px">Norwich Conquered!</div>
+      <div style="color:var(--muted);margin:12px 0 20px;text-align:center;font-size:13px">You've visited all ${pubs.length} pubs in Norwich. You are a true legend of this city.</div>
+      <div style="text-align:center"><button class="btn btn-yellow" onclick="closeModal()">Continue the legend</button></div>
+    </div>`;
+  document.getElementById('modal-overlay').classList.remove('hidden');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INIT — auth-driven (see AUTH_JS above for boot logic)
+// ═══════════════════════════════════════════════════════════════
+</script>
+</body>
+</html>
