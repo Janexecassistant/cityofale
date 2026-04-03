@@ -360,6 +360,13 @@ textarea::placeholder{color:var(--muted)}
     <button class="nav-item" onclick="showPage('stats')"><span class="nav-icon">📊</span> Stats</button>
   </nav>
   <div class="sidebar-foot">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <div id="user-avatar" class="user-avatar"></div>
+      <div style="overflow:hidden">
+        <div id="user-name-sb" style="font-size:13px;font-weight:700;color:var(--text1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+        <div id="user-email-sb" style="font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+      </div>
+    </div>
     <div class="prog-label">
       <span id="sb-prog-label">0 of 0 visited</span>
       <span id="sb-prog-pct">0%</span>
@@ -924,7 +931,7 @@ if (isConfigured) {
     if (session?.user) {
       currentUser = session.user;
       const name = currentUser.user_metadata?.display_name || currentUser.email.split('@')[0];
-      await loadCloudData();
+      try { await loadCloudData(); } catch(e) { console.warn('Cloud load failed, continuing offline:', e); }
       document.getElementById('auth-screen').style.display='none';
       document.getElementById('app').style.display='flex';
       setUserUI(name, currentUser.email, name.slice(0,2).toUpperCase());
@@ -945,9 +952,12 @@ if (isConfigured) {
 
 // ─── User UI helpers ─────────────────────────────────────────
 function setUserUI(name, email, initials) {
-  document.getElementById('user-avatar').textContent = initials;
-  document.getElementById('user-name-sb').textContent = name;
-  document.getElementById('user-email-sb').textContent = email;
+  const ua = document.getElementById('user-avatar');
+  const un = document.getElementById('user-name-sb');
+  const ue = document.getElementById('user-email-sb');
+  if (ua) ua.textContent = initials;
+  if (un) un.textContent = name;
+  if (ue) ue.textContent = email;
   const pa = document.getElementById('profile-avatar');
   const pn = document.getElementById('profile-name-disp');
   const pe = document.getElementById('profile-email-disp');
