@@ -827,8 +827,25 @@ const ALL_PUBS = [
 // ═══════════════════════════════════════════════════════════════
 // RUNTIME STATE
 // ═══════════════════════════════════════════════════════════════
-let pubs = ALL_PUBS.map(p => ({
-  ...p, visited:false, visitDate:null, notes:'', tags:[],
+// Load any user-added pubs from localStorage and merge with built-in list
+function loadUserPubs() {
+  try {
+    const saved = localStorage.getItem('norwich-user-pubs');
+    return saved ? JSON.parse(saved) : [];
+  } catch(e) { return []; }
+}
+function saveUserPubs() {
+  const builtInIds = new Set(ALL_PUBS.map(p => p.id));
+  const userPubs = pubs.filter(p => !builtInIds.has(p.id)).map(p => ({
+    id:p.id, name:p.name, address:p.address, area:p.area, lat:p.lat, lng:p.lng,
+    ale:p.ale, food:p.food, historic:p.historic, website:p.website||'', notes:p.notes||''
+  }));
+  localStorage.setItem('norwich-user-pubs', JSON.stringify(userPubs));
+}
+
+const allPubsWithUser = [...ALL_PUBS, ...loadUserPubs()];
+let pubs = allPubsWithUser.map(p => ({
+  ...p, visited:false, visitDate:null, notes:p.notes||'', tags:[],
   scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0}
 }));
 let activeCrawl = [];
@@ -1800,10 +1817,10 @@ function openSuggestEditForm(pubId) {
 }
 
 function openAddPubForm() {
-  if (!currentUser) { toast('Sign in to suggest a pub'); return; }
+  if (!currentUser) { toast('Sign in to add a pub'); return; }
   document.getElementById('suggest-body').innerHTML = `
     <div class="modal-title">Add a Pub</div>
-    <div class="modal-sub">Know a Norwich pub that's missing? Let us know!</div>
+    <div class="modal-sub">Know a Norwich pub that's missing? Add it to the list!</div>
     <div class="suggest-form">
       <label>Pub Name *</label>
       <input type="text" id="se-name" placeholder="e.g. The Red Lion">
@@ -1827,11 +1844,19 @@ function openAddPubForm() {
         <option>Eaton</option>
         <option>Thorpe Hamlet</option>
         <option>New Costessey</option>
+        <option>Hellesdon</option>
+        <option>Lakenham</option>
+        <option>Trowse</option>
       </select>
-      <label>Details</label>
-      <textarea id="se-details" placeholder="Tell us about this pub — does it serve real ale? Food? Is it historic?"></textarea>
+      <div style="margin-top:10px;display:flex;gap:16px;flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:13px;color:var(--text)"><input type="checkbox" id="se-ale"> Serves Real Ale</label>
+        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:13px;color:var(--text)"><input type="checkbox" id="se-food"> Serves Food</label>
+        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:13px;color:var(--text)"><input type="checkbox" id="se-historic"> Historic Pub</label>
+      </div>
+      <label>Notes</label>
+      <textarea id="se-details" placeholder="Anything notable about this pub?"></textarea>
       <div style="margin-top:14px;display:flex;gap:8px">
-        <button class="btn btn-primary" onclick="submitSuggestion('new_pub',null)">Submit Pub</button>
+        <button class="btn btn-primary" onclick="submitSuggestion('new_pub',null)">Add Pub</button>
         <button class="btn btn-ghost" onclick="closeSuggestModal()">Cancel</button>
       </div>
     </div>
@@ -1846,24 +1871,50 @@ async function submitSuggestion(type, pubId) {
   const details = document.getElementById('se-details')?.value.trim();
   if (!name) { toast('Please enter a pub name'); return; }
 
-  // Save to Supabase
-  if (_sb && currentUser) {
-    try {
-      await _sb.from('pub_suggestions').insert({
-        suggestion_type: type,
-        pub_id: pubId,
-        pub_name: name,
-        pub_address: address,
-        pub_area: area,
-        details: details,
-        submitted_by: currentUser.id,
-        submitted_email: currentUser.email
-      });
-    } catch(e) { console.warn('DB save failed:', e); }
-  }
+  if (type === 'new_pub') {
+    // Add pub directly to the live list
+    const newId = Math.max(...pubs.map(p => p.id)) + 1;
+    const ale = document.getElementById('se-ale')?.checked || false;
+    const food = document.getElementById('se-food')?.checked || false;
+    const historic = document.getElementById('se-historic')?.checked || false;
+    const newPub = {
+      id: newId, name, address: address || '', area: area || 'City Centre',
+      lat: 52.629, lng: 1.294, ale, food, historic, website: '',
+      notes: details || '', photos: [], visited: false, visitDate: null,
+      scores: {ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},
+      tags: []
+    };
+    pubs.push(newPub);
+    saveUserPubs();
+    saveOffline();
+    renderPubs();
+    updateSidebar();
+    if (leafMap) refreshMarkers();
 
-  // Only send email notification for edit suggestions
-  if (type === 'edit') {
+    // Also save to Supabase suggestions table for record-keeping
+    if (_sb && currentUser) {
+      try {
+        await _sb.from('pub_suggestions').insert({
+          suggestion_type: 'new_pub', pub_id: newId, pub_name: name,
+          pub_address: address, pub_area: area, details,
+          submitted_by: currentUser.id, submitted_email: currentUser.email, status: 'approved'
+        });
+      } catch(e) { console.warn('DB save failed:', e); }
+    }
+
+    toast('🍺 ' + name + ' added to the list!');
+  } else {
+    // Edit suggestion — save to Supabase and email notification
+    if (_sb && currentUser) {
+      try {
+        await _sb.from('pub_suggestions').insert({
+          suggestion_type: type, pub_id: pubId, pub_name: name,
+          pub_address: address, pub_area: area, details,
+          submitted_by: currentUser.id, submitted_email: currentUser.email
+        });
+      } catch(e) { console.warn('DB save failed:', e); }
+    }
+
     const subject = encodeURIComponent('City of Ale — Edit Suggestion: ' + name);
     const body = encodeURIComponent(
       'EDIT SUGGESTION\n\n' +
@@ -1875,9 +1926,9 @@ async function submitSuggestion(type, pubId) {
       'Date: ' + new Date().toLocaleString()
     );
     window.open('mailto:mybuddyjonathan@gmail.com?subject=' + subject + '&body=' + body, '_blank');
+    toast('Edit suggestion submitted!');
   }
 
-  toast(type === 'new_pub' ? 'New pub submitted — thanks!' : 'Edit suggestion submitted!');
   closeSuggestModal();
 }
 
