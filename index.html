@@ -228,6 +228,8 @@ textarea::placeholder{color:var(--muted)}
   .pub-grid{grid-template-columns:1fr}
   .modal{padding:18px}
   .score-grid{grid-template-columns:1fr}
+  #page-crawl .sec>div{grid-template-columns:1fr!important}
+  #page-crawl .sec{padding-bottom:80px}
 }
 
 /* SCROLLBAR */
@@ -1979,9 +1981,9 @@ async function savePubData(id) {
   if(n) p.notes=n.value;
   await savePub(p);
   const btn=document.querySelector('#modal-body .btn-primary');
-  if(btn){btn.textContent='✓ Saved!';btn.style.background='var(--green)';btn.style.color='#0a1a07';
-  setTimeout(()=>{btn.textContent='💾 Save';btn.style.background='';btn.style.color='';},1600);}
+  if(btn){btn.textContent='✓ Saved!';btn.style.background='var(--green)';btn.style.color='#0a1a07';}
   renderDash(); updateSidebar();
+  setTimeout(()=>{ closeModal(); },900);
 }
 
 // ═══════════════════════════════════════════════════════════════
