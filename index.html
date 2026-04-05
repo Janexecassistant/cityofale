@@ -228,8 +228,6 @@ textarea::placeholder{color:var(--muted)}
   .pub-grid{grid-template-columns:1fr}
   .modal{padding:18px}
   .score-grid{grid-template-columns:1fr}
-  #page-crawl .sec>div{grid-template-columns:1fr!important}
-  #page-crawl .sec{padding-bottom:80px}
 }
 
 /* SCROLLBAR */
@@ -1717,7 +1715,15 @@ function openModal(id) {
       <button class="btn btn-primary" onclick="savePubData(${id})">💾 Save</button>
       <button class="btn btn-ghost" onclick="closeModal()">Close</button>
       <button class="btn btn-success btn-sm" onclick="toggleVisited(${id})">${p.visited?'↩ Mark Unvisited':'✓ Mark Visited'}</button>
+      <button class="btn btn-ghost btn-sm" onclick="togglePubMap(${id})" id="pub-map-btn-${id}">📍 Show on Map</button>
       <button class="btn btn-ghost btn-sm" onclick="openSuggestEditForm(${id})" style="margin-left:auto">✏️ Suggest Edit</button>
+    </div>
+    <div id="pub-map-wrap-${id}" style="display:none;margin-top:12px">
+      <div id="pub-map-${id}" style="width:100%;height:220px;border-radius:var(--rsm);border:1px solid var(--border)"></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}&travelmode=walking" target="_blank" class="btn btn-ghost btn-sm">🚶 Walk Here (Google)</a>
+        <a href="https://maps.apple.com/?daddr=${p.lat},${p.lng}&dirflg=w" target="_blank" class="btn btn-ghost btn-sm">🍎 Apple Maps</a>
+      </div>
     </div>
 
     <div class="div"></div>
@@ -1743,6 +1749,34 @@ function openModal(id) {
 
 function closeModal() { document.getElementById('modal-overlay').classList.add('hidden'); }
 function maybeClose(e) { if(e.target===document.getElementById('modal-overlay')) closeModal(); }
+
+let _pubMiniMaps = {};
+function togglePubMap(id) {
+  const wrap = document.getElementById('pub-map-wrap-' + id);
+  const btn = document.getElementById('pub-map-btn-' + id);
+  if (!wrap) return;
+  const showing = wrap.style.display !== 'none';
+  wrap.style.display = showing ? 'none' : 'block';
+  btn.textContent = showing ? '📍 Show on Map' : '📍 Hide Map';
+  if (!showing && !_pubMiniMaps[id]) {
+    const p = pubs.find(x => x.id === id);
+    if (!p) return;
+    setTimeout(() => {
+      const m = L.map('pub-map-' + id, { zoomControl: true, attributionControl: false }).setView([p.lat, p.lng], 16);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(m);
+      const icon = L.divIcon({
+        html: '<div style="width:18px;height:18px;border-radius:50%;background:var(--green);border:3px solid #fff;box-shadow:0 0 8px rgba(94,196,74,0.6)"></div>',
+        className: '', iconSize: [18, 18], iconAnchor: [9, 9]
+      });
+      L.marker([p.lat, p.lng], { icon }).addTo(m).bindPopup('<strong>' + p.name + '</strong><br>' + p.address).openPopup();
+      _pubMiniMaps[id] = m;
+    }, 100);
+  } else if (!showing && _pubMiniMaps[id]) {
+    // Clean up old map
+    _pubMiniMaps[id].remove();
+    delete _pubMiniMaps[id];
+  }
+}
 
 // ─── Photo functions ─────────────────────────────────────────
 let _photoUploadPubId = null;
@@ -1981,9 +2015,9 @@ async function savePubData(id) {
   if(n) p.notes=n.value;
   await savePub(p);
   const btn=document.querySelector('#modal-body .btn-primary');
-  if(btn){btn.textContent='✓ Saved!';btn.style.background='var(--green)';btn.style.color='#0a1a07';}
+  if(btn){btn.textContent='✓ Saved!';btn.style.background='var(--green)';btn.style.color='#0a1a07';
+  setTimeout(()=>{btn.textContent='💾 Save';btn.style.background='';btn.style.color='';},1600);}
   renderDash(); updateSidebar();
-  setTimeout(()=>{ closeModal(); },900);
 }
 
 // ═══════════════════════════════════════════════════════════════
