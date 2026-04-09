@@ -2166,16 +2166,33 @@ async function renderAdmin() {
     `;
 
     document.getElementById('admin-users-body').innerHTML = users.map(u => `
-      <tr style="border-bottom:1px solid var(--border)">
+      <tr style="border-bottom:1px solid var(--border)" id="admin-user-row-${u.user_id}">
         <td style="padding:8px 10px;font-weight:600;color:var(--heading)">${u.display_name || '—'}</td>
         <td style="padding:8px 10px;color:var(--text2)">${u.email}</td>
         <td style="padding:8px 10px;color:var(--muted)">${u.signed_up ? new Date(u.signed_up).toLocaleDateString() : '—'}</td>
         <td style="padding:8px 10px;color:var(--muted)">${u.last_sign_in ? new Date(u.last_sign_in).toLocaleDateString() : '—'}</td>
-        <td style="padding:8px 10px;text-align:center">${u.pubs_visited}</td>
-        <td style="padding:8px 10px;text-align:center">${u.pubs_rated}</td>
-        <td style="padding:8px 10px;text-align:center">${u.photos_uploaded}</td>
+        <td style="padding:8px 10px;text-align:center">
+          ${Number(u.pubs_visited) > 0
+            ? `<button class="btn btn-ghost btn-sm" style="color:var(--green-light);text-decoration:underline;font-weight:700" onclick="adminToggleDetail('${u.user_id}','visits')">${u.pubs_visited}</button>`
+            : u.pubs_visited}
+        </td>
+        <td style="padding:8px 10px;text-align:center">
+          ${Number(u.pubs_rated) > 0
+            ? `<button class="btn btn-ghost btn-sm" style="color:var(--green-light);text-decoration:underline;font-weight:700" onclick="adminToggleDetail('${u.user_id}','rated')">${u.pubs_rated}</button>`
+            : u.pubs_rated}
+        </td>
+        <td style="padding:8px 10px;text-align:center">
+          ${Number(u.photos_uploaded) > 0
+            ? `<button class="btn btn-ghost btn-sm" style="color:var(--yellow-light);text-decoration:underline;font-weight:700" onclick="adminToggleDetail('${u.user_id}','photos')">${u.photos_uploaded}</button>`
+            : u.photos_uploaded}
+        </td>
         <td style="padding:8px 10px">
           <button class="btn btn-ghost btn-sm" onclick="adminResetPassword('${u.email}')">Reset Password</button>
+        </td>
+      </tr>
+      <tr id="admin-detail-${u.user_id}" style="display:none">
+        <td colspan="8" style="padding:0">
+          <div id="admin-detail-content-${u.user_id}" style="padding:12px 18px;background:var(--bg3);border-bottom:1px solid var(--border2)"></div>
         </td>
       </tr>
     `).join('');
@@ -2206,6 +2223,115 @@ async function renderAdmin() {
       </tr>
     `).join('') : '<tr><td colspan="8" style="padding:12px;color:var(--muted);text-align:center">No suggestions yet</td></tr>';
   } catch(e) { console.warn('Admin suggestions load error:', e); }
+}
+
+function pubNameById(id) {
+  const p = pubs.find(x => x.id === id);
+  return p ? p.name : 'Pub #' + id;
+}
+
+let _adminDetailOpen = {};
+
+async function adminToggleDetail(userId, type) {
+  const detailRow = document.getElementById('admin-detail-' + userId);
+  const contentDiv = document.getElementById('admin-detail-content-' + userId);
+  if (!detailRow || !contentDiv) return;
+
+  const key = userId + '-' + type;
+  // If already showing this type, just close it
+  if (_adminDetailOpen[userId] === type && detailRow.style.display !== 'none') {
+    detailRow.style.display = 'none';
+    _adminDetailOpen[userId] = null;
+    return;
+  }
+  _adminDetailOpen[userId] = type;
+  contentDiv.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:8px 0">Loading…</div>';
+  detailRow.style.display = '';
+
+  try {
+    if (type === 'visits') {
+      const { data, error } = await _sb.rpc('get_admin_user_visits', { target_user_id: userId });
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        contentDiv.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:4px 0">No visits found</div>';
+        return;
+      }
+      contentDiv.innerHTML = `
+        <div style="font-size:11px;font-weight:700;color:var(--green-light);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">🍻 Pubs Visited</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${data.map(v => `
+            <div style="background:var(--card);border:1px solid var(--border2);border-radius:6px;padding:6px 10px;font-size:12px">
+              <span style="font-weight:600;color:var(--heading)">${pubNameById(v.pub_id)}</span>
+              ${v.visit_date ? `<span style="color:var(--muted);margin-left:6px;font-size:10px">${new Date(v.visit_date).toLocaleDateString()}</span>` : ''}
+            </div>
+          `).join('')}
+        </div>
+      `;
+    } else if (type === 'rated') {
+      const { data, error } = await _sb.rpc('get_admin_user_rated_pubs', { target_user_id: userId });
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        contentDiv.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:4px 0">No ratings found</div>';
+        return;
+      }
+      contentDiv.innerHTML = `
+        <div style="font-size:11px;font-weight:700;color:var(--green-light);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">🍺 Pubs Rated</div>
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead><tr style="border-bottom:1px solid var(--border)">
+            <th style="padding:5px 8px;text-align:left;color:var(--muted);font-size:10px">Pub</th>
+            <th style="padding:5px 8px;text-align:center;color:var(--muted);font-size:10px">Ale</th>
+            <th style="padding:5px 8px;text-align:center;color:var(--muted);font-size:10px">Atmos</th>
+            <th style="padding:5px 8px;text-align:center;color:var(--muted);font-size:10px">Staff</th>
+            <th style="padding:5px 8px;text-align:center;color:var(--muted);font-size:10px">Value</th>
+            <th style="padding:5px 8px;text-align:center;color:var(--muted);font-size:10px">Overall</th>
+            <th style="padding:5px 8px;text-align:right;color:var(--muted);font-size:10px">Date</th>
+          </tr></thead>
+          <tbody>${data.map(r => `
+            <tr style="border-bottom:1px solid var(--border)">
+              <td style="padding:5px 8px;font-weight:600;color:var(--heading)">${pubNameById(r.pub_id)}</td>
+              <td style="padding:5px 8px;text-align:center;color:var(--text)">${r.score_ale}/10</td>
+              <td style="padding:5px 8px;text-align:center;color:var(--text)">${r.score_atmosphere}/10</td>
+              <td style="padding:5px 8px;text-align:center;color:var(--text)">${r.score_staff}/10</td>
+              <td style="padding:5px 8px;text-align:center;color:var(--text)">${r.score_value}/10</td>
+              <td style="padding:5px 8px;text-align:center;font-weight:700;color:var(--yellow-light)">${r.score_overall}/10</td>
+              <td style="padding:5px 8px;text-align:right;color:var(--muted)">${r.updated_at ? new Date(r.updated_at).toLocaleDateString() : '—'}</td>
+            </tr>
+          `).join('')}</tbody>
+        </table>
+      `;
+    } else if (type === 'photos') {
+      const { data, error } = await _sb.rpc('get_admin_user_photos', { target_user_id: userId });
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        contentDiv.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:4px 0">No photos found</div>';
+        return;
+      }
+      // Group photos by pub
+      const byPub = {};
+      data.forEach(p => {
+        if (!byPub[p.pub_id]) byPub[p.pub_id] = [];
+        byPub[p.pub_id].push(p);
+      });
+      contentDiv.innerHTML = `
+        <div style="font-size:11px;font-weight:700;color:var(--yellow-light);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">📷 Photos Uploaded</div>
+        ${Object.entries(byPub).map(([pid, photos]) => `
+          <div style="margin-bottom:10px">
+            <div style="font-weight:600;color:var(--heading);font-size:13px;margin-bottom:6px">${pubNameById(Number(pid))} <span style="color:var(--muted);font-weight:400;font-size:11px">(${photos.length} photo${photos.length>1?'s':''})</span></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              ${photos.map(ph => `
+                <div style="position:relative">
+                  <img src="${ph.photo_url}" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--border2);cursor:pointer" onclick="window.open('${ph.photo_url}','_blank')" title="${ph.caption || 'No caption'}">
+                  <div style="font-size:9px;color:var(--muted);margin-top:2px">${ph.created_at ? new Date(ph.created_at).toLocaleDateString() : ''}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `).join('')}
+      `;
+    }
+  } catch(e) {
+    contentDiv.innerHTML = '<div style="color:var(--red);font-size:12px;padding:4px 0">Error loading: ' + (e.message || 'Unknown error') + '</div>';
+  }
 }
 
 async function adminResetPassword(email) {
