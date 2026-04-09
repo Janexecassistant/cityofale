@@ -378,6 +378,7 @@ textarea::placeholder{color:var(--muted)}
     <button class="nav-item" onclick="showPage('map')"><span class="nav-icon">🗺</span> Map</button>
     <button class="nav-item" onclick="showPage('crawl')"><span class="nav-icon">🚶</span> Crawl Planner</button>
     <button class="nav-item" onclick="showPage('stats')"><span class="nav-icon">📊</span> Stats</button>
+    <button class="nav-item" id="nav-admin" onclick="showPage('admin')" style="display:none"><span class="nav-icon">⚙️</span> Admin</button>
   </nav>
   <div class="sidebar-foot">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
@@ -601,6 +602,57 @@ textarea::placeholder{color:var(--muted)}
             <button class="btn btn-ghost" onclick="forceSyncDown()">&#8595; Reload from Cloud</button>
             <button class="btn btn-ghost btn-sm" style="color:var(--red);border-color:rgba(224,82,82,.3)" onclick="if(confirm('Sign out?'))doSignOut()">Sign Out</button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADMIN (only visible to admin) -->
+    <div class="page" id="page-admin">
+      <div class="ph">
+        <div>
+          <div class="ph-title">⚙️ Admin Panel</div>
+          <div class="ph-sub">User management, suggestions, and site stats</div>
+        </div>
+        <button class="btn btn-ghost" onclick="renderAdmin()">↻ Refresh</button>
+      </div>
+
+      <div class="stat-grid" id="admin-stats"></div>
+
+      <div class="sec">
+        <div class="sec-title" style="margin-bottom:10px">👥 Registered Users</div>
+        <div class="card" style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:12px" id="admin-users-table">
+            <thead><tr style="text-align:left;border-bottom:1px solid var(--border)">
+              <th style="padding:8px 10px;color:var(--muted);font-size:10px;text-transform:uppercase">Name</th>
+              <th style="padding:8px 10px;color:var(--muted);font-size:10px;text-transform:uppercase">Email</th>
+              <th style="padding:8px 10px;color:var(--muted);font-size:10px;text-transform:uppercase">Signed Up</th>
+              <th style="padding:8px 10px;color:var(--muted);font-size:10px;text-transform:uppercase">Last Active</th>
+              <th style="padding:8px 10px;color:var(--muted);font-size:10px;text-transform:uppercase">Visited</th>
+              <th style="padding:8px 10px;color:var(--muted);font-size:10px;text-transform:uppercase">Rated</th>
+              <th style="padding:8px 10px;color:var(--muted);font-size:10px;text-transform:uppercase">Photos</th>
+              <th style="padding:8px 10px;color:var(--muted);font-size:10px;text-transform:uppercase">Actions</th>
+            </tr></thead>
+            <tbody id="admin-users-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-title" style="margin-bottom:10px">📋 Pub Suggestions</div>
+        <div class="card" style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:12px" id="admin-suggest-table">
+            <thead><tr style="text-align:left;border-bottom:1px solid var(--border)">
+              <th style="padding:8px 10px;color:var(--muted);font-size:10px;text-transform:uppercase">Type</th>
+              <th style="padding:8px 10px;color:var(--muted);font-size:10px;text-transform:uppercase">Pub Name</th>
+              <th style="padding:8px 10px;color:var(--muted);font-size:10px;text-transform:uppercase">Address</th>
+              <th style="padding:8px 10px;color:var(--muted);font-size:10px;text-transform:uppercase">Area</th>
+              <th style="padding:8px 10px;color:var(--muted);font-size:10px;text-transform:uppercase">Details</th>
+              <th style="padding:8px 10px;color:var(--muted);font-size:10px;text-transform:uppercase">Submitted By</th>
+              <th style="padding:8px 10px;color:var(--muted);font-size:10px;text-transform:uppercase">Date</th>
+              <th style="padding:8px 10px;color:var(--muted);font-size:10px;text-transform:uppercase">Status</th>
+            </tr></thead>
+            <tbody id="admin-suggest-body"></tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -1033,6 +1085,9 @@ if (isConfigured) {
       document.getElementById('auth-screen').style.display='none';
       document.getElementById('app').style.display='flex';
       setUserUI(name, currentUser.email, name.slice(0,2).toUpperCase());
+      // Show admin nav if admin user
+      const adminNav = document.getElementById('nav-admin');
+      if (adminNav) adminNav.style.display = isAdmin() ? '' : 'none';
       loadOfflineData();
       renderDash(); updateSidebar(); buildCrawlAreas();
       // Load cloud data in background with timeout
@@ -1266,12 +1321,16 @@ function seedDemo() {
 // ═══════════════════════════════════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════════════════════════════════
+const ADMIN_EMAIL = 'mybuddyjonathan@gmail.com';
+function isAdmin() { return currentUser && currentUser.email === ADMIN_EMAIL; }
+
 function showPage(name) {
+  if (name === 'admin' && !isAdmin()) return;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.querySelectorAll('.mob-btn').forEach(n => n.classList.remove('active'));
-  const idx = {dashboard:0,pubs:1,map:2,crawl:3,stats:4}[name];
+  const idx = {dashboard:0,pubs:1,map:2,crawl:3,stats:4,admin:5}[name];
   document.querySelectorAll('.nav-item')[idx]?.classList.add('active');
   document.querySelectorAll('.mob-btn')[idx]?.classList.add('active');
 
@@ -1280,6 +1339,7 @@ function showPage(name) {
   if (name==='pubs') renderPubs();
   if (name==='stats') renderStats();
   if (name==='crawl') buildCrawlAreas();
+  if (name==='admin') renderAdmin();
   updateSidebar();
 }
 
@@ -2077,6 +2137,96 @@ function showCelebration() {
       <div style="text-align:center"><button class="btn btn-yellow" onclick="closeModal()">Continue the legend</button></div>
     </div>`;
   document.getElementById('modal-overlay').classList.remove('hidden');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ADMIN PANEL
+// ═══════════════════════════════════════════════════════════════
+async function renderAdmin() {
+  if (!isAdmin() || !_sb) return;
+
+  // Load user stats via RPC
+  try {
+    const { data: users, error: ue } = await _sb.rpc('get_admin_user_stats');
+    if (ue) throw ue;
+
+    const totalUsers = users.length;
+    const totalVisits = users.reduce((s, u) => s + Number(u.pubs_visited), 0);
+    const totalRatings = users.reduce((s, u) => s + Number(u.pubs_rated), 0);
+    const totalPhotos = users.reduce((s, u) => s + Number(u.photos_uploaded), 0);
+    const activeUsers = users.filter(u => Number(u.pubs_visited) > 0 || Number(u.pubs_rated) > 0).length;
+
+    document.getElementById('admin-stats').innerHTML = `
+      <div class="stat-card"><div class="stat-label">Users</div><div class="stat-value">${totalUsers}</div></div>
+      <div class="stat-card"><div class="stat-label">Active Users</div><div class="stat-value">${activeUsers}</div></div>
+      <div class="stat-card accent"><div class="stat-label">Total Visits</div><div class="stat-value">${totalVisits}</div></div>
+      <div class="stat-card"><div class="stat-label">Ratings</div><div class="stat-value">${totalRatings}</div></div>
+      <div class="stat-card"><div class="stat-label">Photos</div><div class="stat-value">${totalPhotos}</div></div>
+    `;
+
+    document.getElementById('admin-users-body').innerHTML = users.map(u => `
+      <tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:8px 10px;font-weight:600;color:var(--heading)">${u.display_name || '—'}</td>
+        <td style="padding:8px 10px;color:var(--text2)">${u.email}</td>
+        <td style="padding:8px 10px;color:var(--muted)">${u.signed_up ? new Date(u.signed_up).toLocaleDateString() : '—'}</td>
+        <td style="padding:8px 10px;color:var(--muted)">${u.last_sign_in ? new Date(u.last_sign_in).toLocaleDateString() : '—'}</td>
+        <td style="padding:8px 10px;text-align:center">${u.pubs_visited}</td>
+        <td style="padding:8px 10px;text-align:center">${u.pubs_rated}</td>
+        <td style="padding:8px 10px;text-align:center">${u.photos_uploaded}</td>
+        <td style="padding:8px 10px">
+          <button class="btn btn-ghost btn-sm" onclick="adminResetPassword('${u.email}')">Reset Password</button>
+        </td>
+      </tr>
+    `).join('');
+  } catch(e) { console.warn('Admin users load error:', e); }
+
+  // Load suggestions via RPC
+  try {
+    const { data: suggestions, error: se } = await _sb.rpc('get_admin_suggestions');
+    if (se) throw se;
+
+    document.getElementById('admin-suggest-body').innerHTML = suggestions.length ? suggestions.map(s => `
+      <tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:8px 10px"><span class="badge ${s.suggestion_type==='new_pub'?'badge-green':'badge-yellow'}">${s.suggestion_type==='new_pub'?'New Pub':'Edit'}</span></td>
+        <td style="padding:8px 10px;font-weight:600;color:var(--heading)">${s.pub_name}</td>
+        <td style="padding:8px 10px;color:var(--text2);font-size:11px">${s.pub_address || '—'}</td>
+        <td style="padding:8px 10px;color:var(--muted)">${s.pub_area || '—'}</td>
+        <td style="padding:8px 10px;color:var(--text2);font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis">${s.details || '—'}</td>
+        <td style="padding:8px 10px;color:var(--muted);font-size:11px">${s.submitted_email || '—'}</td>
+        <td style="padding:8px 10px;color:var(--muted);font-size:11px">${new Date(s.created_at).toLocaleDateString()}</td>
+        <td style="padding:8px 10px">
+          ${s.status === 'pending' ? `
+            <div style="display:flex;gap:4px">
+              <button class="btn btn-success btn-sm" onclick="adminUpdateSuggestion('${s.id}','approved')">✓</button>
+              <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="adminUpdateSuggestion('${s.id}','rejected')">✕</button>
+            </div>
+          ` : `<span class="badge ${s.status==='approved'?'badge-green':'badge-red'}">${s.status}</span>`}
+        </td>
+      </tr>
+    `).join('') : '<tr><td colspan="8" style="padding:12px;color:var(--muted);text-align:center">No suggestions yet</td></tr>';
+  } catch(e) { console.warn('Admin suggestions load error:', e); }
+}
+
+async function adminResetPassword(email) {
+  if (!confirm('Send password reset email to ' + email + '?')) return;
+  try {
+    const { error } = await _sb.auth.resetPasswordForEmail(email, {
+      redirectTo: 'https://cityofale.com'
+    });
+    if (error) throw error;
+    toast('✓ Reset email sent to ' + email);
+  } catch(e) {
+    toast('Failed: ' + (e.message || 'Unknown error'));
+  }
+}
+
+async function adminUpdateSuggestion(id, status) {
+  try {
+    const { error } = await _sb.rpc('admin_update_suggestion', { suggestion_id: id, new_status: status });
+    if (error) throw error;
+    toast('✓ Suggestion ' + status);
+    renderAdmin();
+  } catch(e) { toast('Failed: ' + (e.message || 'Unknown error')); }
 }
 
 // ═══════════════════════════════════════════════════════════════
