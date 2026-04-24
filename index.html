@@ -366,11 +366,13 @@ textarea::placeholder{color:var(--muted)}
   <div class="brand">
     <div class="brand-mark">
       <div class="brand-icon">🍺</div>
-      <div>
+      <div style="flex:1;min-width:0">
         <div class="brand-name">City of Ale</div>
         <div class="brand-sub">City Tracker</div>
       </div>
+      <button id="audio-toggle" type="button" onclick="(function(a){a.paused?a.play():a.pause();})(document.getElementById('crawl-audio'))" aria-label="Play Norwich Pub Crawl theme" title="Play The Norwich Pub Crawl" style="flex-shrink:0;width:32px;height:32px;border-radius:50%;border:1px solid var(--border3);background:var(--green-dim);color:var(--green-light);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;line-height:1;padding:0;transition:background .15s,color .15s" onmouseover="this.style.background='var(--green-glow)'" onmouseout="this.style.background=document.getElementById('crawl-audio')&&!document.getElementById('crawl-audio').paused?'var(--green-glow)':'var(--green-dim)'">▶</button>
     </div>
+    <audio id="crawl-audio" src="audio/norwich-pub-crawl.mp3" preload="none" onplay="document.getElementById('audio-toggle').textContent='❚❚';document.getElementById('audio-toggle').setAttribute('aria-label','Pause Norwich Pub Crawl theme')" onpause="document.getElementById('audio-toggle').textContent='▶';document.getElementById('audio-toggle').setAttribute('aria-label','Play Norwich Pub Crawl theme')" onended="document.getElementById('audio-toggle').textContent='▶';document.getElementById('audio-toggle').setAttribute('aria-label','Play Norwich Pub Crawl theme')"></audio>
   </div>
   <nav>
     <button class="nav-item active" onclick="showPage('dashboard')"><span class="nav-icon">⊞</span> Dashboard</button>
