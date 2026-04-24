@@ -2,6 +2,8 @@
   "version": 2,
   "builds": [
     { "src": "index.html", "use": "@vercel/static" },
+    { "src": "manifest.json", "use": "@vercel/static" },
+    { "src": "icon-*.png", "use": "@vercel/static" },
     { "src": "audio/**", "use": "@vercel/static" }
   ],
   "routes": [
