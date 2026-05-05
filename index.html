@@ -419,6 +419,7 @@ textarea::placeholder{color:var(--muted)}
     </div>
     <div class="stat-grid" id="dash-stats"></div>
     <div class="sec">
+      <div class="card" id="location-card" style="display:none;margin-bottom:20px;padding:16px"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
         <div>
           <div class="sec-title">🏆 Top Rated Pubs</div>
@@ -1399,6 +1400,104 @@ function updateSidebar() {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// LOCATION / GPS
+// ═══════════════════════════════════════════════════════════════
+let _userLocation = null;
+let _locationChecked = false;
+
+function haversineMeters(lat1, lng1, lat2, lng2) {
+  const R = 6371000; // Earth radius in metres
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function detectLocation(force) {
+  if (_locationChecked && !force && _userLocation) { renderLocationCard(); return; }
+  if (_locationChecked && !force) return;
+  _locationChecked = true;
+  if (!navigator.geolocation) { showLocationStatus('GPS not supported on this device'); return; }
+  showLocationStatus('📍 Finding your location…');
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      _userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy };
+      renderLocationCard();
+    },
+    err => {
+      const msg = err.code === err.PERMISSION_DENIED
+        ? 'Location access denied — enable it in your browser settings'
+        : 'Could not get your location';
+      showLocationStatus(msg, true);
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+  );
+}
+
+function showLocationStatus(msg, allowRetry) {
+  const card = document.getElementById('location-card');
+  if (!card) return;
+  card.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="font-size:22px">📍</div>
+      <div style="flex:1;font-size:13px;color:var(--text2)">${msg}</div>
+      ${allowRetry?'<button class="btn btn-ghost btn-sm" onclick="_locationChecked=false;detectLocation(true)">Try again</button>':''}
+    </div>`;
+  card.style.display = 'block';
+}
+
+function renderLocationCard() {
+  const card = document.getElementById('location-card');
+  if (!card || !_userLocation) return;
+  const withDist = pubs.map(p => ({ p, d: haversineMeters(_userLocation.lat, _userLocation.lng, p.lat, p.lng) }));
+  withDist.sort((a,b) => a.d - b.d);
+  const nearest = withDist[0];
+  const atPub = nearest && nearest.d <= 30 ? nearest : null;
+  const nextUnvis = withDist.filter(x => !x.p.visited && (!atPub || x.p.id !== atPub.p.id)).slice(0, 3);
+
+  let html = '';
+  if (atPub) {
+    const verb = atPub.p.visited ? "You're back at" : "Looks like you're at";
+    const cta = avg(atPub.p) > 0 ? 'Open →' : 'Rate it →';
+    html += `
+      <div style="display:flex;align-items:center;gap:14px;padding-bottom:14px;${nextUnvis.length?'margin-bottom:14px;border-bottom:1px solid var(--border)':''}">
+        <div style="font-size:30px;flex-shrink:0">📍</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:700">${verb}</div>
+          <div style="font-size:17px;font-weight:800;margin:2px 0;line-height:1.2">${atPub.p.name}</div>
+          <div style="font-size:11px;color:var(--muted)">${atPub.p.area} · ${Math.round(atPub.d)}m away</div>
+        </div>
+        <button class="btn btn-yellow btn-sm" onclick="openModal(${atPub.p.id})">${cta}</button>
+      </div>`;
+  } else if (nearest) {
+    html += `
+      <div style="display:flex;align-items:center;gap:10px;padding-bottom:12px;${nextUnvis.length?'margin-bottom:12px;border-bottom:1px solid var(--border)':''}">
+        <div style="font-size:18px;flex-shrink:0">📍</div>
+        <div style="flex:1;font-size:12px;color:var(--text2)">Nearest pub: <strong>${nearest.p.name}</strong> · ${Math.round(nearest.d)}m</div>
+        <button class="btn btn-ghost btn-sm" onclick="_locationChecked=false;detectLocation(true)">↻</button>
+      </div>`;
+  }
+
+  if (nextUnvis.length) {
+    html += `<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:6px">🚶 Where to next?</div>`;
+    html += nextUnvis.map(x => `
+      <div class="lb-item" style="padding:9px 0">
+        <div style="flex:1;cursor:pointer;min-width:0" onclick="openModal(${x.p.id})">
+          <div class="lb-name">${x.p.name}</div>
+          <div class="lb-area">${x.p.area} · ${Math.round(x.d)}m</div>
+        </div>
+        <a href="https://www.google.com/maps/dir/?api=1&destination=${x.p.lat},${x.p.lng}&travelmode=walking" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="text-decoration:none">🚶 Walk</a>
+      </div>`).join('');
+  } else if (!atPub) {
+    html += `<div style="font-size:12px;color:var(--muted);padding:8px 0">You've visited every pub nearby — legend!</div>`;
+  }
+
+  card.innerHTML = html;
+  card.style.display = 'block';
+}
+
+// ═══════════════════════════════════════════════════════════════
 // DASHBOARD
 // ═══════════════════════════════════════════════════════════════
 function renderDash() {
@@ -1444,6 +1543,10 @@ function renderDash() {
 
   const unvis = pubs.filter(p=>!p.visited).slice(0,6);
   document.getElementById('dash-unvisited').innerHTML = unvis.map(p=>pubCardHTML(p)).join('');
+  // GPS-based "you're at this pub" + nearest unvisited (auto, once per session)
+  detectLocation(false);
+  // If we already had a fix, re-render distances against the latest pub list
+  if (_userLocation) renderLocationCard();
 }
 
 // ═══════════════════════════════════════════════════════════════
