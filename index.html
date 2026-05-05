@@ -676,6 +676,7 @@ textarea::placeholder{color:var(--muted)}
   <button class="mob-btn" onclick="showPage('map')"><span class="mob-icon">🗺</span>Map</button>
   <button class="mob-btn" onclick="showPage('crawl')"><span class="mob-icon">🚶</span>Crawl</button>
   <button class="mob-btn" onclick="showPage('stats')"><span class="mob-icon">📊</span>Stats</button>
+  <button class="mob-btn" id="mob-admin" onclick="showPage('admin')" style="display:none"><span class="mob-icon">⚙️</span>Admin</button>
   <button class="mob-btn mob-action" onclick="openAddPubForm()" aria-label="Suggest a pub"><span class="mob-icon">➕</span>Add</button>
   <button class="mob-btn mob-action" id="audio-toggle-mob" onclick="toggleCrawlAudio()" aria-label="Play Norwich Pub Crawl theme"><span class="mob-icon" id="audio-toggle-mob-icon">▶</span>Theme</button>
 </div>
@@ -1129,9 +1130,11 @@ if (isConfigured) {
       document.getElementById('auth-screen').style.display='none';
       document.getElementById('app').style.display='flex';
       setUserUI(name, currentUser.email, name.slice(0,2).toUpperCase());
-      // Show admin nav if admin user
+      // Show admin nav if admin user (desktop + mobile)
       const adminNav = document.getElementById('nav-admin');
       if (adminNav) adminNav.style.display = isAdmin() ? '' : 'none';
+      const mobAdmin = document.getElementById('mob-admin');
+      if (mobAdmin) mobAdmin.style.display = isAdmin() ? '' : 'none';
       loadOfflineData();
       renderDash(); updateSidebar(); buildCrawlAreas();
       // Load cloud data in background with timeout
