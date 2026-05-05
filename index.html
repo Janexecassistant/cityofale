@@ -425,8 +425,8 @@ textarea::placeholder{color:var(--muted)}
           <div class="card" id="top-rated"></div>
         </div>
         <div>
-          <div class="sec-title">🕐 Recently Visited</div>
-          <div class="card" id="recent-visits"></div>
+          <div class="sec-title">✓ Visited Pubs <span id="visited-count-badge" style="font-size:11px;color:var(--muted);font-weight:500;margin-left:6px"></span></div>
+          <div class="card" id="recent-visits" style="max-height:420px;overflow-y:auto"></div>
         </div>
       </div>
       <div class="sec-title">📍 Nearby Unvisited</div>
@@ -1424,11 +1424,19 @@ function renderDash() {
       <span class="lb-score">${avg(p).toFixed(1)}</span>
     </div>`).join('') : '<div style="color:var(--muted);font-size:12px;padding:10px 0">Rate some pubs to see rankings</div>';
 
-  const recent = [...pubs].filter(p=>p.visited&&p.visitDate).sort((a,b)=>new Date(b.visitDate)-new Date(a.visitDate)).slice(0,6);
-  document.getElementById('recent-visits').innerHTML = recent.length ? recent.map(p=>`
+  // Show ALL visited pubs (sorted: pubs with a date first by recency, then any visited without a date)
+  const visitedAll = pubs.filter(p=>p.visited).sort((a,b)=>{
+    const ad=a.visitDate?new Date(a.visitDate).getTime():0;
+    const bd=b.visitDate?new Date(b.visitDate).getTime():0;
+    if(bd!==ad) return bd-ad;
+    return a.name.localeCompare(b.name);
+  });
+  const vcBadge=document.getElementById('visited-count-badge');
+  if(vcBadge) vcBadge.textContent = visitedAll.length ? `(${visitedAll.length})` : '';
+  document.getElementById('recent-visits').innerHTML = visitedAll.length ? visitedAll.map(p=>`
     <div class="lb-item" onclick="openModal(${p.id})">
-      <div style="flex:1"><div class="lb-name">${p.name}</div><div class="lb-area">${fmtDate(p.visitDate)} · ${p.area}</div></div>
-      <span class="badge badge-green">✓</span>
+      <div style="flex:1"><div class="lb-name">${p.name}</div><div class="lb-area">${p.visitDate?fmtDate(p.visitDate)+' · ':''}${p.area}</div></div>
+      ${avg(p)>0?`<span class="lb-score">${avg(p).toFixed(1)}</span>`:'<span class="badge badge-green">✓</span>'}
     </div>`).join('') : '<div style="color:var(--muted);font-size:12px;padding:10px 0">No visits yet — get out there!</div>';
 
   const unvis = pubs.filter(p=>!p.visited).slice(0,6);
@@ -2101,6 +2109,18 @@ function updateScore(id,cat,val) {
   const p=pubs.find(x=>x.id===id);
   if(!p.myScores) p.myScores={ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0};
   p.myScores[cat]=parseInt(val);
+  // Rating a pub automatically marks it as visited
+  if(parseInt(val)>0 && !p.visited){
+    p.visited=true;
+    p.visitDate=new Date().toISOString().split('T')[0];
+    const lbl=document.getElementById('vtog-label');
+    if(lbl){lbl.textContent='Visited '+fmtDate(p.visitDate);lbl.style.color='var(--green-light)';}
+    const cb=document.getElementById('vtog');
+    if(cb) cb.checked=true;
+    // Update the Mark Visited / Mark Unvisited button in the modal
+    const btn=document.querySelector('#modal-body .btn-success');
+    if(btn) btn.textContent='↩ Mark Unvisited';
+  }
 }
 
 function toggleTag(id,tag) {
@@ -2117,11 +2137,24 @@ async function savePubData(id) {
   if(!p) return;
   const n=document.getElementById('notes-'+id);
   if(n) p.notes=n.value;
+  // If any rating has been given, ensure pub is marked visited
+  const anyScore = p.myScores && Object.values(p.myScores).some(v=>v>0);
+  if(anyScore && !p.visited){
+    p.visited=true;
+    p.visitDate=new Date().toISOString().split('T')[0];
+  }
   await savePub(p);
   const btn=document.querySelector('#modal-body .btn-primary');
-  if(btn){btn.textContent='✓ Saved!';btn.style.background='var(--green)';btn.style.color='#0a1a07';
-  setTimeout(()=>{btn.textContent='💾 Save';btn.style.background='';btn.style.color='';},1600);}
+  if(btn){btn.textContent='✓ Saved!';btn.style.background='var(--green)';btn.style.color='#0a1a07';}
+  toast(`✓ Saved ${p.name}`);
+  if(p.visited && visitedCount()===pubs.length) setTimeout(showCelebration,400);
+  // Close the modal and return to the main page (dashboard)
+  setTimeout(()=>{
+    closeModal();
+    showPage('dashboard');
+  },600);
   renderDash(); updateSidebar();
+  if(leafMap) refreshMarkers();
 }
 
 // ═══════════════════════════════════════════════════════════════
