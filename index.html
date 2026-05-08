@@ -139,6 +139,14 @@ nav{padding:10px 8px;flex:1}
 #map{width:100%;height:calc(100vh - 105px);min-height:450px}
 .leaflet-container{background:#111a0d!important}
 .leaflet-tile{filter:brightness(.65) saturate(.7) hue-rotate(10deg)}
+/* User-location pin (pulsing blue dot) */
+.user-loc-dot{position:relative;width:18px;height:18px}
+.user-loc-dot::before{content:'';position:absolute;inset:0;border-radius:50%;background:#3b82f6;opacity:.35;animation:userPulse 1.8s ease-out infinite}
+.user-loc-dot::after{content:'';position:absolute;left:3px;top:3px;width:12px;height:12px;border-radius:50%;background:#3b82f6;border:2px solid #fff;box-shadow:0 0 8px rgba(59,130,246,.8)}
+@keyframes userPulse{0%{transform:scale(.6);opacity:.6}100%{transform:scale(2.4);opacity:0}}
+.find-me-btn{position:absolute;right:12px;bottom:24px;z-index:500;background:var(--bg2);color:var(--text);border:1px solid var(--border3);border-radius:50%;width:44px;height:44px;cursor:pointer;font-size:18px;box-shadow:0 4px 12px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;transition:transform .15s,background .15s}
+.find-me-btn:hover{background:var(--bg3);transform:scale(1.06)}
+.find-me-btn.active{background:#3b82f6;color:#fff;border-color:#3b82f6}
 
 /* MODAL */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.80);z-index:2000;display:flex;align-items:flex-start;justify-content:center;padding:32px 16px;overflow-y:auto;backdrop-filter:blur(4px)}
@@ -480,9 +488,13 @@ textarea::placeholder{color:var(--muted)}
         <span style="width:9px;height:9px;border-radius:50%;background:var(--green);display:inline-block"></span>Visited
         <span style="width:9px;height:9px;border-radius:50%;background:var(--yellow);display:inline-block;margin-left:6px"></span>Unvisited
         <span style="width:9px;height:9px;border-radius:50%;background:#6af;display:inline-block;margin-left:6px"></span>In Crawl
+        <span style="width:9px;height:9px;border-radius:50%;background:#3b82f6;display:inline-block;margin-left:6px;box-shadow:0 0 6px rgba(59,130,246,.9)"></span>You
       </div>
     </div>
-    <div id="map"></div>
+    <div style="position:relative">
+      <div id="map"></div>
+      <button id="find-me" class="find-me-btn" title="Show my location" onclick="locateMe()">📍</button>
+    </div>
   </div>
 
   <!-- CRAWL PLANNER -->
@@ -794,7 +806,7 @@ const ALL_PUBS = [
 {id:52,name:"The Vine Inn",address:"Dove Street, NR2 1DE",area:"St Benedicts",lat:52.6270,lng:1.2910,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
 {id:53,name:"The Queen of Iceni",address:"Unit 6, Wherry Road, NR1 1WX",area:"New Costessey",lat:52.625136,lng:1.304968,ale:false,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
 {id:54,name:"St Andrews Brew House",address:"41 St Andrews Street, NR2 4TP",area:"City Centre",lat:52.630675,lng:1.294714,ale:true,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
-{id:55,name:"The Playhouse Bar",address:"42-58 St Georges Street, NR3 1AB",area:"City Centre",lat:52.6295,lng:1.2960,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
+{id:55,name:"The Playhouse Bar",address:"42-58 St Georges Street, NR3 1AB",area:"City Centre",lat:52.63192,lng:1.29466,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
 {id:56,name:"Rivolo Lounge",address:"City Centre, NR1",area:"City Centre",lat:52.6270,lng:1.2950,ale:false,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
 {id:57,name:"The Last",address:"76 St Georges Street, NR3 1AB",area:"City Centre",lat:52.6294,lng:1.2962,ale:true,food:false,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
 {id:58,name:"Aroma",address:"5 Upper King Street, NR3 1RL",area:"City Centre",lat:52.6304,lng:1.2968,ale:false,food:true,historic:false,website:"",notes:"",photos:[],visited:false,visitDate:null,scores:{ale:0,decor:0,location:0,staff:0,food:0,atmosphere:0,cleanliness:0,value:0,character:0,overall:0},tags:[]},
@@ -1424,6 +1436,8 @@ function detectLocation(force) {
     pos => {
       _userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy };
       renderLocationCard();
+      // If the map is already open, drop the pin without waiting for a manual "Find me" tap.
+      if (typeof refreshUserLocationMarker === 'function') refreshUserLocationMarker();
     },
     err => {
       const msg = err.code === err.PERMISSION_DENIED
@@ -1602,11 +1616,61 @@ function pubCardHTML(p) {
 // ═══════════════════════════════════════════════════════════════
 // MAP
 // ═══════════════════════════════════════════════════════════════
+let userLocMarker = null;
+let userLocAccCircle = null;
+
 function initMap() {
-  if (leafMap) { leafMap.invalidateSize(); refreshMarkers(); return; }
+  if (leafMap) { leafMap.invalidateSize(); refreshMarkers(); refreshUserLocationMarker(); return; }
   leafMap = L.map('map',{zoomControl:true}).setView([52.628,1.298],14);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(leafMap);
   refreshMarkers();
+  // If we already have a fix from elsewhere, drop the pin straight away.
+  if (_userLocation) refreshUserLocationMarker();
+  // Otherwise quietly try to locate so the pin appears without the user clicking.
+  else if (navigator.geolocation) detectLocation(false);
+}
+
+function refreshUserLocationMarker() {
+  if (!leafMap || !_userLocation) return;
+  const { lat, lng, accuracy } = _userLocation;
+  const icon = L.divIcon({
+    html:'<div class="user-loc-dot"></div>',
+    className:'',iconSize:[18,18],iconAnchor:[9,9]
+  });
+  if (userLocMarker) userLocMarker.setLatLng([lat,lng]);
+  else {
+    userLocMarker = L.marker([lat,lng],{icon,zIndexOffset:1000,interactive:true}).addTo(leafMap);
+    userLocMarker.bindPopup('<strong>You are here</strong>');
+  }
+  // Accuracy circle (only show when accuracy is known and reasonable)
+  if (accuracy && accuracy < 500) {
+    if (userLocAccCircle) userLocAccCircle.setLatLng([lat,lng]).setRadius(accuracy);
+    else userLocAccCircle = L.circle([lat,lng],{
+      radius: accuracy, color:'#3b82f6', fillColor:'#3b82f6', fillOpacity:.08, weight:1, opacity:.5
+    }).addTo(leafMap);
+  }
+}
+
+function locateMe() {
+  const btn = document.getElementById('find-me');
+  if (!navigator.geolocation) { alert('GPS not supported on this device'); return; }
+  if (btn) btn.classList.add('active');
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      _userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy };
+      _locationChecked = true;
+      refreshUserLocationMarker();
+      if (leafMap) leafMap.setView([_userLocation.lat, _userLocation.lng], 16, { animate: true });
+      if (btn) setTimeout(()=>btn.classList.remove('active'), 600);
+    },
+    err => {
+      if (btn) btn.classList.remove('active');
+      alert(err.code === err.PERMISSION_DENIED
+        ? 'Location access denied — enable it in your browser settings to show your position.'
+        : 'Could not get your location.');
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+  );
 }
 
 function refreshMarkers() {
