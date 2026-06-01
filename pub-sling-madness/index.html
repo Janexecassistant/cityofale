@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Pub Sling Madness</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <main class="game-shell">
+      <canvas id="game" width="1280" height="720" aria-label="Pub Sling Madness game canvas"></canvas>
+      <section class="hud" aria-label="Game controls and stats">
+        <div class="brand">
+          <span>Pub Sling Madness</span>
+          <small>Launch the seaside strongman over the pub roofs</small>
+        </div>
+        <div class="stats">
+          <div><b id="distance">0m</b><span>Distance</span></div>
+          <div><b id="best">0m</b><span>Best</span></div>
+          <div><b id="coins">0</b><span>Coins</span></div>
+        </div>
+        <div class="controls">
+          <button id="launchButton" type="button">Hold to Pull</button>
+          <button id="restartButton" type="button">Reset Run</button>
+        </div>
+      </section>
+      <aside class="shop" aria-label="Upgrade shop">
+        <h2>Pub Upgrades</h2>
+        <button data-upgrade="elastic">
+          <span>Better Sling</span>
+          <b id="elasticLevel">Lv 1</b>
+          <small id="elasticCost">40 coins</small>
+        </button>
+        <button data-upgrade="bounce">
+          <span>Stout Boots</span>
+          <b id="bounceLevel">Lv 1</b>
+          <small id="bounceCost">45 coins</small>
+        </button>
+        <button data-upgrade="luck">
+          <span>Pub Luck</span>
+          <b id="luckLevel">Lv 1</b>
+          <small id="luckCost">55 coins</small>
+        </button>
+      </aside>
+      <section class="toast" id="toast">Hold the launch button, release at the sweet spot.</section>
+    </main>
+    <script src="game.js"></script>
+  </body>
+</html>
