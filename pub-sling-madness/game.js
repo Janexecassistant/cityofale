@@ -8,6 +8,9 @@ const ui = {
   toast: document.getElementById("toast"),
   launch: document.getElementById("launchButton"),
   restart: document.getElementById("restartButton"),
+  shop: document.getElementById("shopPanel"),
+  shopToggle: document.getElementById("shopToggle"),
+  shopClose: document.getElementById("shopClose"),
   elasticLevel: document.getElementById("elasticLevel"),
   elasticCost: document.getElementById("elasticCost"),
   bounceLevel: document.getElementById("bounceLevel"),
@@ -364,6 +367,12 @@ function buyUpgrade(key) {
   save();
   updateUi();
   showMessage(`${key === "elastic" ? "Better Sling" : key === "bounce" ? "Stout Boots" : "Pub Luck"} upgraded.`);
+}
+
+function setShopOpen(open) {
+  ui.shop.classList.toggle("open", open);
+  ui.shop.setAttribute("aria-hidden", open ? "false" : "true");
+  ui.shopToggle.setAttribute("aria-expanded", open ? "true" : "false");
 }
 
 function draw() {
@@ -1669,6 +1678,14 @@ ui.launch.addEventListener("pointercancel", () => {
 });
 
 ui.restart.addEventListener("click", resetRun);
+
+ui.shopToggle.addEventListener("click", () => {
+  setShopOpen(!ui.shop.classList.contains("open"));
+});
+
+ui.shopClose.addEventListener("click", () => {
+  setShopOpen(false);
+});
 
 document.querySelectorAll("[data-upgrade]").forEach(button => {
   button.addEventListener("click", () => buyUpgrade(button.dataset.upgrade));

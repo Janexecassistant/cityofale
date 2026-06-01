@@ -24,8 +24,12 @@
           <button id="restartButton" type="button">Reset Run</button>
         </div>
       </section>
-      <aside class="shop" aria-label="Upgrade shop">
-        <h2>Pub Upgrades</h2>
+      <button class="shop-toggle" id="shopToggle" type="button" aria-expanded="false" aria-controls="shopPanel">Pub Upgrades</button>
+      <aside class="shop" id="shopPanel" aria-label="Upgrade shop" aria-hidden="true">
+        <h2>
+          <span>Pub Upgrades</span>
+          <button class="shop-close" id="shopClose" type="button" aria-label="Close upgrades">Close</button>
+        </h2>
         <button data-upgrade="elastic">
           <span>Better Sling</span>
           <b id="elasticLevel">Lv 1</b>
