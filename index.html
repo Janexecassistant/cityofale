@@ -329,14 +329,18 @@ textarea::placeholder{color:var(--muted)}
 .profile-section{max-width:480px}
 
 /* PUB GAMES */
-.games-grid{display:grid;gap:18px}
-.game-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap}
-.game-card-title{font-size:18px;font-weight:900;color:var(--heading)}
-.game-card-sub{font-size:13px;color:var(--muted);margin-top:2px}
+.game-picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:14px}
+.game-choice{border:1px solid var(--border);border-radius:var(--radius);padding:14px;text-align:left;background:var(--card);cursor:pointer;font-family:'Nunito',sans-serif;color:var(--text);transition:border-color .15s,background .15s,transform .15s}
+.game-choice:hover{border-color:var(--yellow-border);background:var(--yellow-dim);transform:translateY(-1px)}
+.game-choice.active{border-color:var(--yellow);background:linear-gradient(135deg,var(--yellow-dim),var(--green-dim))}
+.game-choice-title{font-size:17px;font-weight:900;color:var(--heading);margin-bottom:3px}
+.game-choice-sub{font-size:12px;color:var(--muted);line-height:1.35}
+.game-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.game-now-title{font-size:18px;font-weight:900;color:var(--heading)}
+.game-now-sub{font-size:13px;color:var(--muted);margin-top:2px}
 .game-frame-wrap{height:calc(100vh - 154px);min-height:560px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:#16130e}
-.game-frame-wrap.compact{height:680px;min-height:560px}
 .game-frame{display:block;width:100%;height:100%;border:0;background:#16130e}
-@media(max-width:700px){.game-frame-wrap,.game-frame-wrap.compact{height:calc(100vh - 84px);min-height:560px;border-radius:0;border-left:0;border-right:0}.page#page-games .sec{padding-left:0;padding-right:0}.game-card-head{padding:0 14px}}
+@media(max-width:700px){.game-picker{grid-template-columns:1fr;padding:0 14px}.game-toolbar{padding:0 14px}.game-frame-wrap{height:calc(100vh - 260px);min-height:520px;border-radius:0;border-left:0;border-right:0}.page#page-games .sec{padding-left:0;padding-right:0}}
 
 </style>
 </head>
@@ -621,31 +625,25 @@ textarea::placeholder{color:var(--muted)}
       </div>
     </div>
     <div class="sec" style="padding-top:18px">
-      <div class="games-grid">
-        <article>
-          <div class="game-card-head">
-            <div>
-              <div class="game-card-title">Split the G</div>
-              <div class="game-card-sub">Stop the stout line right through the G</div>
-            </div>
-            <a class="btn btn-yellow" href="split-the-g/" target="_blank" rel="noopener" style="text-decoration:none">Open Full Screen →</a>
-          </div>
-          <div class="game-frame-wrap compact">
-            <iframe class="game-frame" src="split-the-g/" title="Split the G"></iframe>
-          </div>
-        </article>
-        <article>
-          <div class="game-card-head">
-            <div>
-              <div class="game-card-title">Pub Sling Madness</div>
-              <div class="game-card-sub">Launch the seaside strongman over the pub roofs</div>
-            </div>
-            <a class="btn btn-yellow" href="pub-sling-madness/" target="_blank" rel="noopener" style="text-decoration:none">Open Full Screen →</a>
-          </div>
-          <div class="game-frame-wrap">
-            <iframe class="game-frame" src="pub-sling-madness/" title="Pub Sling Madness"></iframe>
-          </div>
-        </article>
+      <div class="game-picker" aria-label="Choose a game">
+        <button class="game-choice active" type="button" data-game="split" onclick="selectGame('split')">
+          <div class="game-choice-title">Split the G</div>
+          <div class="game-choice-sub">Stop the stout line right through the G</div>
+        </button>
+        <button class="game-choice" type="button" data-game="sling" onclick="selectGame('sling')">
+          <div class="game-choice-title">Pub Sling Madness</div>
+          <div class="game-choice-sub">Launch the seaside strongman over the pub roofs</div>
+        </button>
+      </div>
+      <div class="game-toolbar">
+        <div>
+          <div class="game-now-title" id="game-title">Split the G</div>
+          <div class="game-now-sub" id="game-sub">Stop the stout line right through the G</div>
+        </div>
+        <a class="btn btn-yellow" id="game-fullscreen" href="split-the-g/" target="_blank" rel="noopener" style="text-decoration:none">Open Full Screen →</a>
+      </div>
+      <div class="game-frame-wrap">
+        <iframe class="game-frame" id="game-frame" src="split-the-g/" title="Split the G"></iframe>
       </div>
     </div>
   </div>
@@ -1450,6 +1448,34 @@ function showPage(name) {
   if (name==='crawl') buildCrawlAreas();
   if (name==='admin') renderAdmin();
   updateSidebar();
+}
+
+function selectGame(game) {
+  const games = {
+    split: {
+      title: 'Split the G',
+      sub: 'Stop the stout line right through the G',
+      src: 'split-the-g/'
+    },
+    sling: {
+      title: 'Pub Sling Madness',
+      sub: 'Launch the seaside strongman over the pub roofs',
+      src: 'pub-sling-madness/'
+    }
+  };
+  const selected = games[game] || games.split;
+  document.querySelectorAll('.game-choice').forEach(choice => {
+    choice.classList.toggle('active', choice.dataset.game === game);
+  });
+  const frame = document.getElementById('game-frame');
+  if (frame && frame.getAttribute('src') !== selected.src) frame.src = selected.src;
+  const title = document.getElementById('game-title');
+  const sub = document.getElementById('game-sub');
+  const full = document.getElementById('game-fullscreen');
+  if (title) title.textContent = selected.title;
+  if (sub) sub.textContent = selected.sub;
+  if (full) full.href = selected.src;
+  if (frame) frame.title = selected.title;
 }
 
 function updateSidebar() {
