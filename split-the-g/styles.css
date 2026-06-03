@@ -414,6 +414,7 @@ video {
   position: relative;
   --practice-target-center: 52px;
   --practice-target-band: 42px;
+  --practice-target-width: 46px;
   width: 126px;
   height: 206px;
   overflow: hidden;
@@ -513,9 +514,10 @@ video {
 .practice-target {
   position: absolute;
   top: calc(var(--practice-target-center) - var(--practice-target-band) / 2);
-  left: 27px;
-  right: 27px;
+  left: 50%;
+  width: var(--practice-target-width);
   height: var(--practice-target-band);
+  transform: translateX(-50%);
   border: 1px solid rgba(214, 170, 69, 0.7);
   border-radius: 999px;
   background: rgba(214, 170, 69, 0.18);
@@ -525,8 +527,8 @@ video {
 .practice-target::after {
   content: "";
   position: absolute;
-  left: -7px;
-  right: -7px;
+  left: 5px;
+  right: 5px;
   top: 50%;
   height: 2px;
   transform: translateY(-50%);
@@ -753,8 +755,7 @@ video {
 
   .practice-target {
     --practice-target-center: 43px;
-    left: 22px;
-    right: 22px;
+    --practice-target-width: 39px;
   }
 
   .practice-glass.is-drinking {
@@ -811,7 +812,6 @@ video {
 
   .practice-target {
     --practice-target-center: 38px;
-    left: 18px;
-    right: 18px;
+    --practice-target-width: 34px;
   }
 }
