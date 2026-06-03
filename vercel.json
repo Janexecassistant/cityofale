@@ -20,6 +20,10 @@
     {
       "src": "pub-sling-madness/**",
       "use": "@vercel/static"
+    },
+    {
+      "src": "split-the-g/**",
+      "use": "@vercel/static"
     }
   ],
   "routes": [

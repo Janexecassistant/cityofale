@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Split the G</title>
+    <link rel="stylesheet" href="styles.css?v=23" />
+  </head>
+  <body>
+    <div class="pub-backdrop" aria-hidden="true">
+      <img src="assets/bar-background-optimized.jpeg?v=8" alt="" />
+    </div>
+    <main class="app-shell">
+      <section class="play-surface" aria-label="Split the G game">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Stout precision challenge</p>
+            <h1>Split the G</h1>
+          </div>
+          <div class="score-chip" aria-live="polite">
+            <span id="bestScore">--</span>
+            <small>best</small>
+          </div>
+        </header>
+
+        <div class="stage-grid">
+          <section class="camera-panel" aria-label="Camera scoring">
+            <div class="camera-frame">
+              <video id="video" playsinline muted></video>
+              <canvas id="snapshot" hidden></canvas>
+              <canvas id="analysisCanvas" class="analysis-canvas"></canvas>
+              <div class="target-overlay" aria-hidden="true">
+                <div class="target-line"></div>
+                <div class="glass-guide">
+                  <span class="target-letter">G</span>
+                </div>
+              </div>
+              <div id="cameraEmpty" class="camera-empty">
+                <span>Camera ready</span>
+              </div>
+            </div>
+
+            <div class="controls">
+              <button id="cameraBtn" class="primary">Start camera</button>
+              <button id="sipBtn">Start sip</button>
+              <button id="captureBtn">Score glass</button>
+            </div>
+          </section>
+
+          <aside class="game-panel" aria-label="Game status">
+            <div class="timer-block">
+              <span id="phaseLabel">Line up the printed G</span>
+              <strong id="timer">0.00s</strong>
+            </div>
+
+            <div class="result-block">
+              <div class="result-ring" style="--score: 0">
+                <span id="scoreValue">--</span>
+              </div>
+              <div>
+                <h2 id="verdict">Awaiting attempt</h2>
+                <p id="feedback">
+                  Align the G bar with the gold line, take one steady sip, then show the glass to score the foam line.
+                </p>
+              </div>
+            </div>
+
+            <div class="sound-strip" aria-label="Sound controls">
+              <div>
+                <span>Audio</span>
+                <strong id="soundStatus">Sound on</strong>
+              </div>
+              <button id="soundToggle" aria-pressed="true">Sound on</button>
+            </div>
+
+            <div class="practice">
+              <div class="practice-glass" aria-hidden="true">
+                <div class="glass-liquid-mask">
+                  <div id="practiceBeer" class="practice-beer"></div>
+                  <div class="practice-head"></div>
+                </div>
+                <div class="glass-shine"></div>
+                <div class="glass-label">
+                  <span class="practice-g">G</span>
+                </div>
+                <span class="practice-target"></span>
+              </div>
+              <div class="practice-actions">
+                <button id="practiceDrink">Hold to drink</button>
+                <button id="tiltMode" aria-pressed="false">Enable tilt</button>
+                <button id="practiceReset" aria-label="Reset practice">Reset</button>
+              </div>
+            </div>
+          </aside>
+        </div>
+
+        <section class="instruction-grid" aria-label="Game instructions">
+          <article>
+            <h2>Camera game</h2>
+            <ol>
+              <li>Start camera and line the printed G up with the gold guide.</li>
+              <li>Tap Start sip, drink once, then show the glass to the camera.</li>
+              <li>Tap Score glass to compare the foam line with the G line.</li>
+            </ol>
+          </article>
+          <article>
+            <h2>Touch practice</h2>
+            <ol>
+              <li>Enable tilt and hold the phone straight to calibrate.</li>
+              <li>Tip the phone to drink, then straighten it when the foam line reaches the G.</li>
+              <li>You get one shot, then Reset starts a full glass again.</li>
+            </ol>
+          </article>
+        </section>
+      </section>
+
+      <section class="research-band" aria-label="Research notes">
+        <article>
+          <h2>What the trend says</h2>
+          <p>
+            Split the G is usually judged on the first uninterrupted sip: the foam line should land through the
+            middle bar of the printed G. Looser pub rules sometimes accept the broader printed logo area,
+            but the strict version is more fun to score.
+          </p>
+        </article>
+        <article>
+          <h2>Game recommendations</h2>
+          <p>
+            Use rounds, a visible timer, a precision score, and a near-miss replay. Add a sober practice mode,
+            Guinness 0.0 or any dark stout option, and a house-rule toggle for strict or casual scoring.
+          </p>
+        </article>
+      </section>
+    </main>
+
+    <script src="script.js?v=25"></script>
+  </body>
+</html>
