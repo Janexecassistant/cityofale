@@ -388,6 +388,8 @@ video {
 
 .practice-glass {
   position: relative;
+  --practice-target-center: 52px;
+  --practice-target-band: 42px;
   width: 126px;
   height: 206px;
   overflow: hidden;
@@ -486,10 +488,24 @@ video {
 
 .practice-target {
   position: absolute;
-  top: 52px;
+  top: calc(var(--practice-target-center) - var(--practice-target-band) / 2);
   left: 27px;
   right: 27px;
+  height: var(--practice-target-band);
+  border: 1px solid rgba(214, 170, 69, 0.7);
+  border-radius: 999px;
+  background: rgba(214, 170, 69, 0.18);
+  box-shadow: 0 0 14px rgba(214, 170, 69, 0.42);
+}
+
+.practice-target::after {
+  content: "";
+  position: absolute;
+  left: -7px;
+  right: -7px;
+  top: 50%;
   height: 2px;
+  transform: translateY(-50%);
   background: var(--gold);
   box-shadow: 0 0 12px rgba(214, 170, 69, 0.75);
 }
@@ -704,7 +720,7 @@ video {
   }
 
   .practice-target {
-    top: 43px;
+    --practice-target-center: 43px;
     left: 22px;
     right: 22px;
   }
@@ -762,7 +778,7 @@ video {
   }
 
   .practice-target {
-    top: 38px;
+    --practice-target-center: 38px;
     left: 18px;
     right: 18px;
   }

@@ -62,9 +62,10 @@ soundToggle.setAttribute("aria-pressed", String(soundEnabled));
 function getPracticeDifficulty() {
   const step = Math.min(practiceRound - 1, 9);
   return {
-    drain: 0.72 + step * 0.12,
-    toleranceRatio: Math.max(0.06, 0.18 - step * 0.012),
-    passScore: Math.min(88, 58 + step * 3)
+    drain: 0.58 + step * 0.1,
+    bandRatio: Math.max(0.07, 0.26 - step * 0.021),
+    falloffRatio: Math.max(0.08, 0.16 - step * 0.008),
+    passScore: Math.min(90, 68 + step * 2.2)
   };
 }
 
@@ -77,8 +78,9 @@ function playSample(name, volume = 0.78) {
   sample.play().catch(() => {});
 }
 
-function playScoreSound(score) {
-  if (score >= 84) {
+function playScoreSound(score, source = "camera") {
+  const successScore = source === "practice" ? getPracticeDifficulty().passScore : 84;
+  if (score >= successScore) {
     playSample("cheer", 0.82);
   } else {
     playSample("boo", 0.82);
@@ -89,7 +91,7 @@ function setResult(score, distance, source = "camera") {
   const rounded = Math.max(0, Math.min(100, Math.round(score)));
   scoreValue.textContent = rounded;
   resultRing.style.setProperty("--score", rounded);
-  playScoreSound(rounded);
+  playScoreSound(rounded, source);
   if (rounded > best) {
     best = rounded;
     localStorage.setItem("splitG.best", String(best));
@@ -247,6 +249,14 @@ function setPracticeLevel(level) {
   practiceGlass.style.setProperty("--beer-height", `${practiceLevel}%`);
 }
 
+function setPracticeTargetBand() {
+  const difficulty = getPracticeDifficulty();
+  const maskRect = practiceLiquidMask.getBoundingClientRect();
+  const maskHeight = maskRect.height || 190;
+  const band = Math.max(10, Math.round(maskHeight * difficulty.bandRatio));
+  practiceGlass.style.setProperty("--practice-target-band", `${band}px`);
+}
+
 function getPracticeMetrics() {
   const maskRect = practiceLiquidMask.getBoundingClientRect();
   const targetRect = practiceTarget.getBoundingClientRect();
@@ -254,21 +264,25 @@ function getPracticeMetrics() {
   const maskHeight = maskRect.height || 190;
   const targetY = targetRect.top + targetRect.height / 2;
   const foamBottomY = headRect.bottom;
-  return { maskHeight, targetY, foamBottomY };
+  const targetBand = targetRect.height;
+  return { maskHeight, targetY, foamBottomY, targetBand };
 }
 
 function scorePractice() {
-  const { maskHeight, targetY, foamBottomY } = getPracticeMetrics();
+  const { maskHeight, targetY, foamBottomY, targetBand } = getPracticeMetrics();
   const miss = foamBottomY - targetY;
   const difficulty = getPracticeDifficulty();
-  const tolerance = maskHeight * difficulty.toleranceRatio;
-  const score = Math.max(0, 100 - (Math.abs(miss) / tolerance) * 100);
-  setResult(score, miss, "practice");
+  const bandMiss = Math.max(0, Math.abs(miss) - targetBand / 2);
+  const falloff = maskHeight * difficulty.falloffRatio;
+  const score = Math.max(0, 100 - (bandMiss / falloff) * 100);
+  setResult(score, bandMiss, "practice");
   if (score >= difficulty.passScore) {
     practiceRound += 1;
+    setPracticeTargetBand();
     phaseLabel.textContent = `Round ${practiceRound - 1} cleared`;
-    feedback.textContent += ` Next round gets a little faster and stricter.`;
+    feedback.textContent += ` Next round gets a smaller target band and a slightly faster pour.`;
   } else {
+    setPracticeTargetBand();
     phaseLabel.textContent = `Round ${practiceRound}`;
     feedback.textContent += ` Round ${practiceRound} will stay at this easier setting until you clear it.`;
   }
@@ -436,6 +450,7 @@ practiceReset.addEventListener("click", () => {
   practiceDrink.textContent = "Hold to drink";
   stopSipClock();
   setPracticeLevel(100);
+  setPracticeTargetBand();
   timer.textContent = "0.00s";
   phaseLabel.textContent = `Round ${practiceRound}`;
   scoreValue.textContent = "--";
@@ -449,3 +464,4 @@ practiceReset.addEventListener("click", () => {
 });
 
 setPracticeLevel(practiceLevel);
+setPracticeTargetBand();
