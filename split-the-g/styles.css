@@ -93,6 +93,30 @@ button.primary {
   padding: 24px 0 32px;
 }
 
+.exit-link {
+  position: absolute;
+  top: 20px;
+  right: 0;
+  z-index: 4;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 14px;
+  color: var(--ink);
+  background: rgba(20, 18, 15, 0.56);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(10px);
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.exit-link:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.32);
+}
+
 .play-surface {
   min-height: calc(100vh - 128px);
   display: flex;
@@ -572,6 +596,14 @@ video {
 
   .play-surface {
     min-height: auto;
+  }
+
+  .exit-link {
+    position: relative;
+    top: auto;
+    right: auto;
+    align-self: flex-end;
+    margin-bottom: 10px;
   }
 
   .stage-grid,
