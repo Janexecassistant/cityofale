@@ -1395,6 +1395,14 @@ function queryWithTimeout(queryPromise, ms = 6000) {
   ]);
 }
 
+async function fetchCommunityScoreRows() {
+  if (!_sb) return { data: [], error: null };
+  const rpcRes = await queryWithTimeout(_sb.rpc('get_pub_score_averages'), 6000);
+  if (!rpcRes.error) return rpcRes;
+  console.warn('Public ratings function unavailable, falling back to view:', rpcRes.error);
+  return queryWithTimeout(_sb.from('pub_score_averages').select('*'), 6000);
+}
+
 async function loadCloudData() {
   if (!_sb || !currentUser) return;
   setSyncDot('saving');
@@ -1402,7 +1410,7 @@ async function loadCloudData() {
     // Run all three queries in parallel, each with its own timeout
     const [visitRes, scoreRes, myScoreRes] = await Promise.all([
       queryWithTimeout(_sb.from('pub_visits').select('*').eq('user_id', currentUser.id)),
-      queryWithTimeout(_sb.from('pub_score_averages').select('*')),
+      fetchCommunityScoreRows(),
       queryWithTimeout(_sb.from('pub_scores').select('*').eq('user_id', currentUser.id))
     ]);
 
@@ -1421,7 +1429,7 @@ async function loadCloudData() {
 async function loadCommunityScores() {
   if (!_sb) return false;
   try {
-    const scoreRes = await queryWithTimeout(_sb.from('pub_score_averages').select('*'), 6000);
+    const scoreRes = await fetchCommunityScoreRows();
     if (scoreRes.error) throw scoreRes.error;
     if (scoreRes.data) scoreRes.data.forEach(d => applyCommunityScores(d));
     return true;
