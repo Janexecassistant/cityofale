@@ -1154,6 +1154,7 @@ function bootGuestMode() {
   resetPubs();
   loadOfflineData();
   renderDash(); updateSidebar(); buildCrawlAreas(); refreshAuthControls();
+  loadCommunityScores().then(refreshVisiblePage);
 }
 
 async function signIn() {
@@ -1415,6 +1416,28 @@ async function loadCloudData() {
     if (scoreRes.data)   scoreRes.data.forEach(d   => applyCommunityScores(d));
     setSyncDot('online');
   } catch(e) { console.warn('Load error:', e); setSyncDot('offline'); }
+}
+
+async function loadCommunityScores() {
+  if (!_sb) return false;
+  try {
+    const scoreRes = await queryWithTimeout(_sb.from('pub_score_averages').select('*'), 6000);
+    if (scoreRes.error) throw scoreRes.error;
+    if (scoreRes.data) scoreRes.data.forEach(d => applyCommunityScores(d));
+    return true;
+  } catch(e) {
+    console.warn('Community scores unavailable:', e);
+    return false;
+  }
+}
+
+function refreshVisiblePage() {
+  const active = document.querySelector('.page.active')?.id?.replace('page-', '');
+  if (active === 'dashboard') renderDash();
+  if (active === 'pubs') renderPubs();
+  if (active === 'stats') renderStats();
+  if (active === 'map' && leafMap) refreshMarkers();
+  updateSidebar();
 }
 
 // Private visit data (notes, visited status, tags) — only this user's
