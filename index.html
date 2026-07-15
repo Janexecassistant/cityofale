@@ -142,10 +142,19 @@ nav{padding:10px 8px;flex:1}
 .spin-picker select:focus{border-color:var(--border3)}
 .spin-picker select option{background:#182012}
 .spin-picker-hint{font-size:10px;color:var(--muted);line-height:1.35;margin-top:7px}
-.spin-result{background:rgba(10,15,8,.42);border:1px solid var(--yellow-border);border-radius:var(--rsm);padding:14px;margin-top:12px;min-height:112px}
-.spin-result-name{font-family:'Bitter',serif;font-size:22px;font-weight:900;color:var(--yellow-light);line-height:1.1}
-.spin-result-meta{font-size:11px;color:var(--muted);margin:4px 0 9px}
-.spin-result-actions{display:flex;gap:7px;flex-wrap:wrap}
+.spin-result{position:relative;overflow:hidden;background:linear-gradient(135deg,rgba(232,200,50,.13),rgba(94,196,74,.09));border:1px solid var(--yellow-border);border-radius:var(--rsm);padding:14px;margin-top:12px;min-height:112px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+.spin-result::before{content:'';position:absolute;right:-36px;top:-38px;width:116px;height:116px;border-radius:50%;background:radial-gradient(circle,rgba(245,223,128,.26),transparent 62%);pointer-events:none}
+.spin-result.is-winner{background:linear-gradient(135deg,#f3dc60 0%,#d9b72f 42%,#78c95e 100%);border:2px solid #ffe987;color:#10200c;box-shadow:0 12px 28px rgba(0,0,0,.28),inset 0 0 0 2px rgba(255,255,255,.18)}
+.spin-result.is-spinning{border-color:#d9b72f;background:linear-gradient(135deg,rgba(232,200,50,.18),rgba(94,196,74,.13))}
+.spin-result-kicker{position:relative;z-index:1;display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:999px;background:rgba(232,200,50,.16);border:1px solid rgba(232,200,50,.32);font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--yellow-light);margin-bottom:8px}
+.spin-result.is-winner .spin-result-kicker{background:rgba(16,32,12,.16);border-color:rgba(16,32,12,.24);color:#10200c}
+.spin-result-name{position:relative;z-index:1;font-family:'Bitter',serif;font-size:23px;font-weight:900;color:var(--yellow-light);line-height:1.1}
+.spin-result.is-winner .spin-result-name{color:#10200c;text-shadow:0 1px 0 rgba(255,255,255,.28)}
+.spin-result-meta{position:relative;z-index:1;font-size:11px;color:var(--muted);margin:4px 0 10px}
+.spin-result.is-winner .spin-result-meta{color:rgba(16,32,12,.72);font-weight:800}
+.spin-result-actions{position:relative;z-index:1;display:flex;gap:7px;flex-wrap:wrap}
+.spin-result.is-winner .btn{border-color:rgba(16,32,12,.24);background:rgba(16,32,12,.14);color:#10200c}
+.spin-result.is-winner .btn-primary{background:#10200c;color:var(--yellow-light);border-color:#10200c}
 
 /* PUB CARDS */
 .pub-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
@@ -1975,8 +1984,9 @@ function renderPubSpinner() {
         </div>
         <button class="btn btn-yellow" onclick="spinPubWheel()" ${needsLocation || !wheelPubs.length || needsMoreCustomPubs ? 'disabled' : ''}>Spin the Wheel</button>
         ${needsLocation ? '<button class="btn btn-ghost" style="margin-left:7px" onclick="_locationChecked=false;detectLocation(true)">Use location</button>' : ''}
-        <div class="spin-result" id="spin-result">
-          ${result ? spinResultHTML(result) : `<div class="spin-result-name">${needsLocation ? 'Use your location first' : 'Ready when you are'}</div>
+        <div class="spin-result${result ? ' is-winner' : ''}" id="spin-result">
+          ${result ? spinResultHTML(result) : `<div class="spin-result-kicker">${needsLocation ? 'Location needed' : 'Wheel ready'}</div>
+          <div class="spin-result-name">${needsLocation ? 'Use your location first' : 'Ready when you are'}</div>
           <div class="spin-result-meta">${needsLocation ? 'Tap Use location, then spin nearby pubs.' : needsMoreCustomPubs ? 'Add one more pub to spin your chosen wheel.' : `${wheelPubs.length} pubs loaded on the wheel.`}</div>`}
         </div>
       </div>
@@ -1987,6 +1997,7 @@ function spinResultHTML(p) {
   const sc = avg(p);
   const tags = [p.area, p.ale?'Real ale':'', p.food?'Food':'', p.historic?'Historic':''].filter(Boolean).join(' · ');
   return `
+    <div class="spin-result-kicker">Winner</div>
     <div class="spin-result-name">${safeText(p.name)}</div>
     <div class="spin-result-meta">${safeText(tags)}${sc>0 ? ` · ${sc.toFixed(1)}/10` : ''}</div>
     <div class="spin-result-actions">
@@ -2051,10 +2062,13 @@ function resetSpinWheel() {
 
 function spinPubWheel() {
   if (spinBusy) return;
-  const wheelPubs = spinWheelPubs();
+  let wheelPubs = spinWheelIds.map(id => pubs.find(p => p.id === id)).filter(Boolean);
+  if (!wheelPubs.length) {
+    wheelPubs = spinWheelPubs();
+    spinWheelIds = wheelPubs.map(p => p.id);
+  }
   if (!wheelPubs.length) { toast('No pubs match that spin'); return; }
   if (spinCustomMode && wheelPubs.length < 2) { toast('Add at least two pubs to spin'); return; }
-  spinWheelIds = wheelPubs.map(p => p.id);
   const pick = Math.floor(Math.random() * wheelPubs.length);
   const selected = wheelPubs[pick];
   const slice = 360 / wheelPubs.length;
@@ -2063,14 +2077,23 @@ function spinPubWheel() {
   const result = document.getElementById('spin-result');
   spinBusy = true;
   spinResultId = null;
-  if (result) result.innerHTML = `<div class="spin-result-name">Spinning...</div><div class="spin-result-meta">Finding a ${spinFilterLabel().replace('pubs','pub')}.</div>`;
-  spinRotation += 1440 + (360 - center);
+  if (result) {
+    result.className = 'spin-result is-spinning';
+    result.innerHTML = `<div class="spin-result-kicker">Spinning</div><div class="spin-result-name">Round it goes...</div><div class="spin-result-meta">Picking from the pubs currently on this wheel.</div>`;
+  }
+  const targetRotation = (360 - center) % 360;
+  const currentRotation = ((spinRotation % 360) + 360) % 360;
+  const spinDelta = (targetRotation - currentRotation + 360) % 360;
+  spinRotation += 1440 + spinDelta;
   if (wheel) wheel.style.transform = `translate(-50%,-50%) rotate(${spinRotation}deg)`;
   setTimeout(() => {
     spinResultId = selected.id;
     spinBusy = false;
     const target = document.getElementById('spin-result');
-    if (target) target.innerHTML = spinResultHTML(selected);
+    if (target) {
+      target.className = 'spin-result is-winner';
+      target.innerHTML = spinResultHTML(selected);
+    }
     toast(`Picked ${selected.name}`);
   }, 3650);
 }
