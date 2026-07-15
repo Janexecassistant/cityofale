@@ -131,7 +131,17 @@ nav{padding:10px 8px;flex:1}
 .spin-roster-num{width:22px;height:22px;border-radius:50%;background:var(--yellow);color:#1a1400;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;flex-shrink:0}
 .spin-roster-name{font-size:13px;color:var(--heading);font-weight:900;line-height:1.15;overflow-wrap:anywhere}
 .spin-roster-area{font-size:10px;color:var(--muted);line-height:1.15;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.spin-roster-chip.custom{position:relative;padding-right:34px}
+.spin-roster-remove{position:absolute;right:7px;top:7px;width:22px;height:22px;border-radius:50%;border:1px solid rgba(232,200,50,.42);background:rgba(10,15,8,.38);color:var(--yellow-light);font-size:15px;line-height:1;cursor:pointer;font-weight:900}
+.spin-roster-remove:hover{background:rgba(232,200,50,.18)}
+.spin-empty{background:rgba(255,255,255,.045);border:1px dashed var(--border2);border-radius:var(--rsm);padding:12px;color:var(--muted);font-size:12px;line-height:1.35}
 .spin-filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.spin-picker{background:rgba(255,255,255,.045);border:1px solid var(--border2);border-radius:var(--rsm);padding:10px;margin-bottom:12px}
+.spin-picker-row{display:flex;gap:7px;align-items:center}
+.spin-picker select{flex:1;min-width:0;background:rgba(8,14,6,.82);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);padding:7px 9px;font-size:12px;font-family:'Nunito',sans-serif;outline:none}
+.spin-picker select:focus{border-color:var(--border3)}
+.spin-picker select option{background:#182012}
+.spin-picker-hint{font-size:10px;color:var(--muted);line-height:1.35;margin-top:7px}
 .spin-result{background:rgba(10,15,8,.42);border:1px solid var(--yellow-border);border-radius:var(--rsm);padding:14px;margin-top:12px;min-height:112px}
 .spin-result-name{font-family:'Bitter',serif;font-size:22px;font-weight:900;color:var(--yellow-light);line-height:1.1}
 .spin-result-meta{font-size:11px;color:var(--muted);margin:4px 0 9px}
@@ -1789,11 +1799,26 @@ const GUIDE_AREAS = ['City Centre','St Benedicts','Cathedral Quarter','Fye Bridg
 const GUIDE_FIRST_PICKS = [27,41,30,12,43,31];
 const GUIDE_HISTORIC_PICKS = [30,24,33,34,161,185];
 const SPIN_COLORS = ['#e8c832','#5ec44a','#d7a63c','#7bc96f','#f1d967','#4daa3b','#c4a046','#8ed97f','#deb94d','#66b957'];
+const SPIN_MAX_PUBS = 8;
 let spinFilter = 'any';
 let spinRotation = 0;
 let spinWheelIds = [];
 let spinResultId = null;
 let spinBusy = false;
+let spinCustomMode = localStorage.getItem('norwich-spin-custom-mode') === '1';
+let spinCustomIds = loadSpinCustomIds();
+
+function loadSpinCustomIds() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('norwich-spin-custom-ids') || '[]');
+    return Array.isArray(saved) ? saved.map(Number).filter(Boolean).slice(0, SPIN_MAX_PUBS) : [];
+  } catch(e) { return []; }
+}
+
+function saveSpinCustomWheel() {
+  localStorage.setItem('norwich-spin-custom-mode', spinCustomMode ? '1' : '0');
+  localStorage.setItem('norwich-spin-custom-ids', JSON.stringify(spinCustomIds.slice(0, SPIN_MAX_PUBS)));
+}
 
 function setDashHeading(title, subtitle, ctaText) {
   const titleEl = document.getElementById('dash-title');
@@ -1841,7 +1866,7 @@ function spinCandidatePool() {
     .map(x => x.p);
 }
 
-function spinWheelPubs() {
+function spinAutoWheelPubs() {
   const pool = spinCandidatePool();
   if (!pool.length) return [];
   const top = pool.slice(0, 18);
@@ -1853,12 +1878,20 @@ function spinWheelPubs() {
     }
   });
   top.forEach(p => {
-    if (!seen.has(p.id) && chosen.length < 10) { chosen.push(p); seen.add(p.id); }
+    if (!seen.has(p.id) && chosen.length < SPIN_MAX_PUBS) { chosen.push(p); seen.add(p.id); }
   });
-  return chosen.length ? chosen : pool.slice(0, 10);
+  return chosen.length ? chosen : pool.slice(0, SPIN_MAX_PUBS);
+}
+
+function spinWheelPubs() {
+  if (spinCustomMode) {
+    return spinCustomIds.map(id => pubs.find(p => p.id === id)).filter(Boolean).slice(0, SPIN_MAX_PUBS);
+  }
+  return spinAutoWheelPubs();
 }
 
 function spinFilterLabel() {
+  if (spinCustomMode) return 'your chosen pubs';
   return {
     any:'guide picks',
     near:'nearby pubs',
@@ -1879,7 +1912,25 @@ function renderPubSpinner() {
     ? wheelPubs.map((p,i) => `${SPIN_COLORS[i % SPIN_COLORS.length]} ${i*slice}deg ${(i+1)*slice}deg`).join(',')
     : 'var(--card) 0deg 360deg';
   const result = spinResultId ? pubs.find(p => p.id === spinResultId) : null;
-  const needsLocation = spinFilter === 'near' && !_userLocation;
+  const needsLocation = !spinCustomMode && spinFilter === 'near' && !_userLocation;
+  const needsMoreCustomPubs = spinCustomMode && wheelPubs.length < 2;
+  const selectedIds = new Set(spinCustomMode ? wheelPubs.map(p => p.id) : []);
+  const pickerPubs = pubs
+    .filter(p => !selectedIds.has(p.id))
+    .sort((a,b) => a.name.localeCompare(b.name));
+  const rosterTitle = spinCustomMode ? `Your chosen wheel (${wheelPubs.length}/${SPIN_MAX_PUBS})` : `Tonight's wheel`;
+  const rosterHTML = wheelPubs.length ? wheelPubs.map((p,i) => `
+            <div class="spin-roster-chip custom" onclick="openModal(${p.id})">
+              <div class="spin-roster-num">${i+1}</div>
+              <div style="min-width:0">
+                <div class="spin-roster-name">${safeText(p.name)}</div>
+                <div class="spin-roster-area">${safeText(p.area)}</div>
+              </div>
+              <button class="spin-roster-remove" onclick="removeSpinPub(event,${p.id})" aria-label="Remove ${safeText(p.name)} from wheel" title="Remove from wheel">×</button>
+            </div>`).join('') : `<div class="spin-empty">Add at least two pubs to make your own wheel.</div>`;
+  const pickerHint = spinCustomMode
+    ? (wheelPubs.length < 2 ? 'Choose at least two pubs, then spin your own shortlist.' : 'This custom wheel is saved on this device.')
+    : 'Add a pub to start your own wheel, or use the guide filters below.';
 
   wrap.innerHTML = `
     <div class="spin-card">
@@ -1889,7 +1940,7 @@ function renderPubSpinner() {
           ${wheelPubs.map((p,i) => {
             const angle = i*slice + slice/2 - 90;
             const rad = angle * Math.PI / 180;
-            return `<div class="spin-label" style="--a:${angle}deg;--x:${Math.cos(rad)*31.5}%;--y:${Math.sin(rad)*31.5}%"><span>${safeText(shortSpinName(p.name))}</span></div>`;
+            return `<div class="spin-label" style="--a:0deg;--x:${Math.cos(rad)*35.5}%;--y:${Math.sin(rad)*35.5}%"><span>${safeText(shortSpinName(p.name))}</span></div>`;
           }).join('')}
           ${wheelPubs.map((p,i) => `<div class="spin-beer-pin" style="--a:${i*slice - 90}deg">🍺</div>`).join('')}
           <div class="spin-hub">CITY<br>OF ALE</div>
@@ -1898,16 +1949,19 @@ function renderPubSpinner() {
       <div>
         <div class="spin-copy-title">Spin for a Pub</div>
         <div class="spin-copy">Can’t decide where to go next? Spin a shortlist of ${spinFilterLabel()} and let the guide pick one.</div>
-        <div class="spin-roster-title">Tonight's wheel</div>
+        <div class="spin-roster-title">${rosterTitle}</div>
         <div class="spin-roster">
-          ${wheelPubs.map((p,i) => `
-            <div class="spin-roster-chip" onclick="openModal(${p.id})">
-              <div class="spin-roster-num">${i+1}</div>
-              <div style="min-width:0">
-                <div class="spin-roster-name">${safeText(p.name)}</div>
-                <div class="spin-roster-area">${safeText(p.area)}</div>
-              </div>
-            </div>`).join('')}
+          ${rosterHTML}
+        </div>
+        <div class="spin-picker">
+          <div class="spin-picker-row">
+            <select id="spin-pub-picker" aria-label="Choose a pub for the wheel" ${!pickerPubs.length || (spinCustomMode && wheelPubs.length >= SPIN_MAX_PUBS) ? 'disabled' : ''}>
+              ${pickerPubs.length ? pickerPubs.map(p => `<option value="${p.id}">${safeText(p.name)} - ${safeText(p.area)}</option>`).join('') : '<option>No more pubs to add</option>'}
+            </select>
+            <button class="btn btn-ghost btn-sm" onclick="addSpinPub()" ${!pickerPubs.length || (spinCustomMode && wheelPubs.length >= SPIN_MAX_PUBS) ? 'disabled' : ''}>Add pub</button>
+            ${spinCustomMode ? '<button class="btn btn-ghost btn-sm" onclick="resetSpinWheel()">Reset</button>' : ''}
+          </div>
+          <div class="spin-picker-hint">${pickerHint}</div>
         </div>
         <div class="spin-filters">
           ${[
@@ -1917,13 +1971,13 @@ function renderPubSpinner() {
             ['food','Food'],
             ['historic','Historic'],
             ['new','Not visited']
-          ].map(([val,label]) => `<button class="opt-btn${spinFilter===val?' active':''}" onclick="setSpinFilter('${val}')">${label}</button>`).join('')}
+          ].map(([val,label]) => `<button class="opt-btn${!spinCustomMode && spinFilter===val?' active':''}" onclick="setSpinFilter('${val}')">${label}</button>`).join('')}
         </div>
-        <button class="btn btn-yellow" onclick="spinPubWheel()" ${needsLocation || !wheelPubs.length ? 'disabled' : ''}>Spin the Wheel</button>
+        <button class="btn btn-yellow" onclick="spinPubWheel()" ${needsLocation || !wheelPubs.length || needsMoreCustomPubs ? 'disabled' : ''}>Spin the Wheel</button>
         ${needsLocation ? '<button class="btn btn-ghost" style="margin-left:7px" onclick="_locationChecked=false;detectLocation(true)">Use location</button>' : ''}
         <div class="spin-result" id="spin-result">
           ${result ? spinResultHTML(result) : `<div class="spin-result-name">${needsLocation ? 'Use your location first' : 'Ready when you are'}</div>
-          <div class="spin-result-meta">${needsLocation ? 'Tap Use location, then spin nearby pubs.' : `${wheelPubs.length} pubs loaded on the wheel.`}</div>`}
+          <div class="spin-result-meta">${needsLocation ? 'Tap Use location, then spin nearby pubs.' : needsMoreCustomPubs ? 'Add one more pub to spin your chosen wheel.' : `${wheelPubs.length} pubs loaded on the wheel.`}</div>`}
         </div>
       </div>
     </div>`;
@@ -1943,6 +1997,9 @@ function spinResultHTML(p) {
 }
 
 function setSpinFilter(filter) {
+  spinCustomMode = false;
+  spinCustomIds = [];
+  saveSpinCustomWheel();
   spinFilter = filter;
   spinResultId = null;
   if (filter === 'near' && !_userLocation) {
@@ -1952,10 +2009,51 @@ function setSpinFilter(filter) {
   renderPubSpinner();
 }
 
+function addSpinPub() {
+  const picker = document.getElementById('spin-pub-picker');
+  const id = Number(picker?.value);
+  if (!id) return;
+  if (!spinCustomMode) {
+    spinCustomMode = true;
+    spinCustomIds = [];
+  }
+  if (spinCustomIds.includes(id)) { toast('That pub is already on the wheel'); return; }
+  if (spinCustomIds.length >= SPIN_MAX_PUBS) { toast('Remove a pub before adding another'); return; }
+  spinCustomIds.push(id);
+  spinResultId = null;
+  saveSpinCustomWheel();
+  renderPubSpinner();
+  const pub = pubs.find(p => p.id === id);
+  toast(pub ? `Added ${pub.name} to the wheel` : 'Added pub to the wheel');
+}
+
+function removeSpinPub(event, id) {
+  if (event) event.stopPropagation();
+  if (!spinCustomMode) {
+    spinCustomMode = true;
+    spinCustomIds = spinWheelIds.slice(0, SPIN_MAX_PUBS);
+  }
+  spinCustomIds = spinCustomIds.filter(pubId => pubId !== id);
+  spinResultId = null;
+  saveSpinCustomWheel();
+  renderPubSpinner();
+  toast('Removed from the wheel');
+}
+
+function resetSpinWheel() {
+  spinCustomMode = false;
+  spinCustomIds = [];
+  spinResultId = null;
+  saveSpinCustomWheel();
+  renderPubSpinner();
+  toast('Back to guide picks');
+}
+
 function spinPubWheel() {
   if (spinBusy) return;
   const wheelPubs = spinWheelPubs();
   if (!wheelPubs.length) { toast('No pubs match that spin'); return; }
+  if (spinCustomMode && wheelPubs.length < 2) { toast('Add at least two pubs to spin'); return; }
   spinWheelIds = wheelPubs.map(p => p.id);
   const pick = Math.floor(Math.random() * wheelPubs.length);
   const selected = wheelPubs[pick];
