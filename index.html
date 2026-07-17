@@ -1817,18 +1817,66 @@ const GUIDE_AREAS = ['City Centre','St Benedicts','Cathedral Quarter','Fye Bridg
 const GUIDE_FIRST_PICKS = [27,41,30,12,43,31];
 const GUIDE_HISTORIC_PICKS = [30,24,33,34,161,185];
 const PUB_JOKES = [
-  {tag:'Ale', text:'The ale was so hoppy it tried to join the pub crawl without me.'},
-  {tag:'Map', text:'A map, a pint, and a plan walked into a pub. Only the pint made it out on schedule.'},
-  {tag:'Quiz', text:'Our pub quiz team is called Low Expectations. We came second, which was frankly unprofessional.'},
-  {tag:'Local', text:'I asked the bartender for something local. He handed me directions to the next pub.'},
-  {tag:'Historic', text:'I turned on the Historic Pubs filter and my knees immediately requested a taxi.'},
-  {tag:'Guide', text:'I told the barman I was doing research. He said, "Good, start with the bitter evidence."'},
-  {tag:'Crawl', text:'My crawl planner says six pubs. My shoes have filed a formal objection.'},
-  {tag:'Dog-friendly', text:'The sign said dog-friendly, so I asked if the pub was people-tolerant.'},
-  {tag:'Half pint', text:'I asked for a half. The bartender said, "Half what, the route or your dignity?"'},
-  {tag:'Real ale', text:'The real ale refused GPS. Apparently it already knew it was well-rounded.'},
-  {tag:'Ratings', text:'I rated the pub atmosphere a ten, but the regulars said it was more of a lifestyle than a score.'},
-  {tag:'Last orders', text:'Last orders is just the pub saying, "You do not have to go home, but the bar staff would like a plot twist."'}
+  {tag:'Classic', text:'A horse walks into a bar. The bartender says, "Why the long face?"'},
+  {tag:'Classic', text:'A sandwich walks into a bar. The bartender says, "Sorry, we do not serve food."'},
+  {tag:'Classic', text:'A skeleton walks into a bar and says, "A pint, and a mop."'},
+  {tag:'Science', text:'A neutron walks into a bar and asks the price. The bartender says, "For you? No charge."'},
+  {tag:'Grammar', text:'The past, present, and future walked into a bar. It was tense.'},
+  {tag:'Classic', text:'A priest, a rabbi, and a minister walk into a bar. The bartender says, "What is this, a joke?"'},
+  {tag:'Time travel', text:'The bartender says, "We do not serve time travelers." A time traveler walks into a bar.'},
+  {tag:'Physics', text:'A photon checks into a bar hotel. No bag: it is traveling light.'},
+  {tag:'Animals', text:'A duck walks into a bar and says, "Put it on my bill."'},
+  {tag:'Animals', text:'A giraffe walks into a bar. The bartender says, "High there."'},
+  {tag:'Animals', text:'A dog walks into a bar and asks for the bark-tender.'},
+  {tag:'Animals', text:'A fish walks into a bar. The bartender says, "You are out of your depth."'},
+  {tag:'Wordplay', text:'A termite walks into a bar and asks, "Is the bar tender here?"'},
+  {tag:'Maths', text:'Parallel lines walked into a bar. Same direction, no chemistry.'},
+  {tag:'Magic', text:'A magician walked into a bar and vanished into gin air.'},
+  {tag:'Quantum', text:'Schrodinger\'s cat walks into a bar. Also, it does not.'},
+  {tag:'Bar tab', text:'I asked for something on the house. The bartender handed me a ladder.'},
+  {tag:'Neat', text:'I asked the bartender for something neat. He gave me a broom.'},
+  {tag:'Bar exam', text:'The bar exam was easy. I passed after ordering correctly.'},
+  {tag:'Spirits', text:'I trust my bartender with my spirits, but not my life choices.'},
+  {tag:'Pour choices', text:'The bartender asked why it was a long night. I said, "Pour choices."'},
+  {tag:'Wifi', text:'The pub had bad Wi-Fi, so I had to connect with people. Terrifying.'},
+  {tag:'Decisions', text:'The barstool wobbled exactly like my decision-making.'},
+  {tag:'Mirror', text:'The pub mirror said, "You again?" Rude, but accurate.'},
+  {tag:'Ice', text:'I told the ice to chill. It said, "I was made for this."'},
+  {tag:'Napkin', text:'The napkin judged me. To be fair, I did tell it everything.'},
+  {tag:'Tip jar', text:'The tip jar glared at me. Same energy as my bank app.'},
+  {tag:'Menu', text:'The menu said "Try me," so I panicked and ordered everything.'},
+  {tag:'Jukebox', text:'The jukebox refused sad songs. It had heard enough from table four.'},
+  {tag:'Secret', text:'I told my drink a secret. It spilled immediately.'},
+  {tag:'Smooth', text:'I asked for something smooth. The bartender put on jazz.'},
+  {tag:'Splash zone', text:'I spilled my pint and called it immersive pub theatre.'},
+  {tag:'Wallet', text:'My wallet fears happy hour. It knows happiness is temporary.'},
+  {tag:'Fitness', text:'Bar hopping counts as cardio if you look tired enough.'},
+  {tag:'Exercise', text:'I went for a run and ended up at a pub. My route has character.'},
+  {tag:'Directions', text:'I brought a map to the pub and still got lost in the sauce.'},
+  {tag:'Regret', text:'My local has a dress code: smart casual regret.'},
+  {tag:'Fancy pub', text:'The pub was so fancy even the peanuts had a booking reference.'},
+  {tag:'Karaoke', text:'Karaoke night: where confidence arrives before talent.'},
+  {tag:'Quiz team', text:'Our pub quiz team is called Low Expectations. We still underperform.'},
+  {tag:'Quiz', text:'I joined a pub quiz for the free crisps and left with educational damage.'},
+  {tag:'Real ale', text:'Real ale is just beer with a backstory and better handwriting.'},
+  {tag:'Craft beer', text:'Craft beer names sound like rejected indie bands.'},
+  {tag:'IPA', text:'I tried an IPA so hoppy it asked to borrow my trainers.'},
+  {tag:'Stout', text:'The stout was dark, mysterious, and already judging my lager.'},
+  {tag:'Lager', text:'I ordered a lager. It arrived with the emotional range of a beige cardigan.'},
+  {tag:'Cider', text:'Cider is what happens when apples get a social life.'},
+  {tag:'Guinness', text:'Ordering Guinness teaches patience and makes everyone behind you philosophical.'},
+  {tag:'Half pint', text:'I ordered a half pint. The bartender asked, "Half a plan or half a mistake?"'},
+  {tag:'Last orders', text:'Last orders is the pub version of a cliffhanger.'},
+  {tag:'Round', text:'Buying a round is friendship with a receipt.'},
+  {tag:'Round', text:'I said, "This one is on me." My wallet filed a grievance.'},
+  {tag:'Crawl', text:'A pub crawl is a walking tour where the walking gets less convincing.'},
+  {tag:'Crawl', text:'My crawl planner says six pubs. My shoes have requested mediation.'},
+  {tag:'Local', text:'I asked for the local special. They pointed at the man who has been there since 1998.'},
+  {tag:'Regulars', text:'Pub regulars do not sit at tables. They have constituencies.'},
+  {tag:'Dog-friendly', text:'The sign said dog-friendly, so I asked if humans were tolerated.'},
+  {tag:'Beer garden', text:'A beer garden is where optimism meets unpredictable weather.'},
+  {tag:'Outdoor pint', text:'Nothing says British summer like guarding a pint from sideways rain.'},
+  {tag:'Norwich', text:'In Norwich, "just one more pub" is not a plan. It is a local dialect.'}
 ];
 const SPIN_COLORS = ['#e8c832','#5ec44a','#d7a63c','#7bc96f','#f1d967','#4daa3b','#c4a046','#8ed97f','#deb94d','#66b957'];
 const SPIN_MAX_PUBS = 8;
@@ -1867,7 +1915,7 @@ function safeText(v) {
 }
 
 function jokeSelection() {
-  return [0, 1, 2].map(i => PUB_JOKES[(jokeOffset + i) % PUB_JOKES.length]);
+  return [0, 1, 2, 3, 4, 5].map(i => PUB_JOKES[(jokeOffset + i) % PUB_JOKES.length]);
 }
 
 function renderPubJokes() {
@@ -1879,7 +1927,7 @@ function renderPubJokes() {
       <div class="joke-head">
         <div>
           <div class="joke-title">🍻 Pub Joke Break</div>
-          <div class="guide-action-copy">A quick round of clean pub humour for the crawl.</div>
+          <div class="guide-action-copy">6 of ${PUB_JOKES.length} clean pub jokes, pulled from the better-rated joke patterns and rewritten for City of Ale.</div>
         </div>
         <button class="btn btn-ghost btn-sm" onclick="nextPubJokes()">Another round</button>
       </div>
@@ -1895,7 +1943,7 @@ function renderPubJokes() {
 }
 
 function nextPubJokes() {
-  jokeOffset = (jokeOffset + 3) % PUB_JOKES.length;
+  jokeOffset = (jokeOffset + 6) % PUB_JOKES.length;
   localStorage.setItem('cityofale-joke-offset', String(jokeOffset));
   renderPubJokes();
 }
