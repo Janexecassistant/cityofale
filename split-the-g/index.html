@@ -3,46 +3,41 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="screen-orientation" content="portrait" />
     <title>Split the G</title>
-    <link rel="stylesheet" href="styles.css?v=30" />
+    <link rel="stylesheet" href="styles.css?v=31" />
   </head>
   <body>
     <main class="mobile-game" aria-label="Split the G tilt game">
-      <header class="game-header">
-        <div>
-          <p class="eyebrow">Tilt the phone. Stop on the line.</p>
-          <h1>Split the G</h1>
+      <div id="practiceGlass" class="pint-glass" aria-hidden="true">
+        <div class="pint-liquid-mask">
+          <div id="practiceBeer" class="pint-beer"></div>
+          <div class="pint-head"></div>
         </div>
+        <div class="target-g" aria-hidden="true">G</div>
+        <div id="practiceTarget" class="target-zone" aria-hidden="true"><span></span></div>
+      </div>
+
+      <header class="game-header">
+        <p class="game-name">Split the G</p>
         <div class="header-actions">
           <a class="exit-link" href="../" target="_top">Exit</a>
           <button id="soundToggle" class="icon-button" type="button" aria-pressed="true" aria-label="Toggle sound">Sound on</button>
         </div>
       </header>
 
-      <section class="pint-stage" aria-label="Tilt to pour the stout">
-        <div id="practiceGlass" class="pint-glass" aria-hidden="true">
-          <div class="pint-liquid-mask">
-            <div id="practiceBeer" class="pint-beer"></div>
-            <div class="pint-head"></div>
-          </div>
-          <div class="glass-shine"></div>
-          <div class="target-g" aria-hidden="true">G</div>
-          <div id="practiceTarget" class="target-zone" aria-hidden="true"><span></span></div>
+      <section class="game-footer" aria-live="polite">
+        <section class="game-status">
+          <div><span>Round</span><strong id="roundValue">1</strong></div>
+          <div><span>Best</span><strong id="bestScore">--</strong></div>
+          <div><span>Score</span><strong id="scoreValue">--</strong></div>
+        </section>
+        <p id="feedback" class="feedback">Tap start, hold your phone straight, then tilt to pour. Straighten it to stop.</p>
+        <div class="game-actions">
+          <button id="tiltMode" class="primary" type="button" aria-pressed="false">Start tilt</button>
+          <button id="practiceReset" type="button">Reset</button>
         </div>
       </section>
-
-      <section class="game-status" aria-live="polite">
-        <div><span>Round</span><strong id="roundValue">1</strong></div>
-        <div><span>Best</span><strong id="bestScore">--</strong></div>
-        <div><span>Score</span><strong id="scoreValue">--</strong></div>
-      </section>
-
-      <p id="feedback" class="feedback">Tap start, hold your phone straight, then tilt to pour. Straighten it to stop.</p>
-
-      <div class="game-actions">
-        <button id="tiltMode" class="primary" type="button" aria-pressed="false">Start tilt</button>
-        <button id="practiceReset" type="button">Reset</button>
-      </div>
       <button id="practiceDrink" class="touch-pour" type="button">Hold to pour</button>
     </main>
 
@@ -54,6 +49,6 @@
       </div>
     </section>
 
-    <script src="script.js?v=30"></script>
+    <script src="script.js?v=31"></script>
   </body>
 </html>

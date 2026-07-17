@@ -169,6 +169,9 @@ async function enableTilt() {
         return;
       }
     }
+    if (screen.orientation && typeof screen.orientation.lock === "function") {
+      await screen.orientation.lock("portrait").catch(() => {});
+    }
     tiltEnabled = true;
     tiltBaseline = null;
     tiltMode.setAttribute("aria-pressed", "true");
