@@ -22,7 +22,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
 h1 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(2.6rem, 7vw, 4.8rem); line-height: .95; }
 .desktop-message p:not(.eyebrow) { max-width: 44ch; margin: 18px 0 0; color: var(--muted); font-size: 1.05rem; line-height: 1.5; }
 
-@media (max-width: 700px) {
+@media (max-width: 700px), (hover: none) and (pointer: coarse) and (orientation: landscape) {
   body { overflow: hidden; background: #080402; }
   .desktop-message { display: none; }
 

@@ -169,6 +169,9 @@ async function enableTilt() {
         return;
       }
     }
+    if (document.fullscreenEnabled && !document.fullscreenElement) {
+      await document.documentElement.requestFullscreen().catch(() => {});
+    }
     if (screen.orientation && typeof screen.orientation.lock === "function") {
       await screen.orientation.lock("portrait").catch(() => {});
     }
