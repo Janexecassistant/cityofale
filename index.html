@@ -492,6 +492,7 @@ textarea::placeholder{color:var(--muted)}
     <button class="nav-item" onclick="showPage('games')"><span class="nav-icon">🎯</span> Games</button>
     <button class="nav-item" onclick="showPage('stats')"><span class="nav-icon">📊</span> Stats</button>
     <button class="nav-item" onclick="showPage('profile')"><span class="nav-icon">👤</span> Profile & Sync</button>
+    <a class="nav-item" href="dublin.html" style="text-decoration:none"><span class="nav-icon">🍀</span> Dublin Guide <span class="nav-badge">NEW</span></a>
     <button class="nav-item" id="nav-admin" onclick="showPage('admin')" style="display:none"><span class="nav-icon">⚙️</span> Admin</button>
   </nav>
   <div class="sidebar-foot">
@@ -710,24 +711,24 @@ textarea::placeholder{color:var(--muted)}
     </div>
     <div class="sec" style="padding-top:18px">
       <div class="game-picker" aria-label="Choose a game">
-        <button class="game-choice active" type="button" data-game="sling" onclick="selectGame('sling')">
-          <div class="game-choice-title">Pub Sling Madness</div>
-          <div class="game-choice-sub">Launch the seaside strongman over the pub roofs</div>
-        </button>
-        <button class="game-choice" type="button" data-game="split" onclick="selectGame('split')">
+        <button class="game-choice active" type="button" data-game="split" onclick="selectGame('split')">
           <div class="game-choice-title">Split the G</div>
           <div class="game-choice-sub">Stop the stout line right through the G</div>
+        </button>
+        <button class="game-choice" type="button" data-game="sling" onclick="selectGame('sling')">
+          <div class="game-choice-title">Pub Sling Madness</div>
+          <div class="game-choice-sub">Launch the seaside strongman over the pub roofs</div>
         </button>
       </div>
       <div class="game-toolbar">
         <div>
-          <div class="game-now-title" id="game-title">Pub Sling Madness</div>
-          <div class="game-now-sub" id="game-sub">Launch the seaside strongman over the pub roofs</div>
+          <div class="game-now-title" id="game-title">Split the G</div>
+          <div class="game-now-sub" id="game-sub">Stop the stout line right through the G</div>
         </div>
-        <a class="btn btn-yellow" id="game-fullscreen" href="pub-sling-madness/" target="_blank" rel="noopener" style="text-decoration:none">Open Full Screen →</a>
+        <a class="btn btn-yellow" id="game-fullscreen" href="split-the-g/" target="_blank" rel="noopener" style="text-decoration:none">Open Full Screen →</a>
       </div>
       <div class="game-frame-wrap">
-        <iframe class="game-frame" id="game-frame" src="pub-sling-madness/" title="Pub Sling Madness" allow="accelerometer; gyroscope; fullscreen" allowfullscreen></iframe>
+        <iframe class="game-frame" id="game-frame" src="split-the-g/" title="Split the G"></iframe>
       </div>
     </div>
   </div>
@@ -1657,10 +1658,10 @@ function showPage(name) {
   if (name === 'admin' && !isAdmin()) return;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.nav-item:not([href])').forEach(n => n.classList.remove('active'));
   document.querySelectorAll('.mob-btn:not(.mob-action)').forEach(n => n.classList.remove('active'));
   const idx = {dashboard:0,pubs:1,map:2,crawl:3,games:4,stats:5,profile:6,admin:7}[name];
-  document.querySelectorAll('.nav-item')[idx]?.classList.add('active');
+  document.querySelectorAll('.nav-item:not([href])')[idx]?.classList.add('active');
   document.querySelectorAll('.mob-btn:not(.mob-action)')[idx]?.classList.add('active');
 
   if (name==='map') initMap();
