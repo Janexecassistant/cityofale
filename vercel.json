@@ -3,6 +3,7 @@
   "builds": [
     { "src": "index.html", "use": "@vercel/static" },
     { "src": "dublin.html", "use": "@vercel/static" },
+    { "src": "dublin-map-data.js", "use": "@vercel/static" },
     { "src": "manifest.json", "use": "@vercel/static" },
     { "src": "icon-*.png", "use": "@vercel/static" },
     { "src": "audio/**", "use": "@vercel/static" },
