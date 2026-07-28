@@ -423,8 +423,12 @@ textarea::placeholder{color:var(--muted)}
 @media(max-width:700px){.game-picker{grid-template-columns:1fr;padding:0 14px}.game-toolbar{padding:0 14px}.game-frame-wrap{height:calc(100vh - 260px);min-height:520px;border-radius:0;border-left:0;border-right:0}.page#page-games .sec{padding-left:0;padding-right:0}}
 
 </style>
+<style>
+  .city-chooser{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;padding:22px;background:linear-gradient(135deg,#09251fdd,#143b30ee);backdrop-filter:blur(8px)}.city-chooser.hidden{display:none}.city-chooser-card{width:min(700px,100%);padding:36px;border:1px solid rgba(255,255,255,.18);border-radius:22px;background:#10372e;color:#f8f0df;text-align:center;box-shadow:0 30px 90px #0008}.city-chooser-card h1{font:800 clamp(34px,7vw,62px)/.95 Georgia,serif;margin:8px 0 12px}.city-chooser-card p{color:#c7bdad;margin:0 auto 25px;max-width:470px}.city-choices{display:grid;grid-template-columns:1fr 1fr;gap:14px}.city-choice{display:block;padding:24px;border-radius:14px;text-decoration:none;text-align:left;color:#fff;border:1px solid rgba(255,255,255,.18);background:#ffffff0c}.city-choice:hover{transform:translateY(-3px);border-color:#f0b44c}.city-choice strong{display:block;font:800 27px Georgia,serif;margin:7px 0}.city-choice span{font-size:13px;color:#c7bdad}@media(max-width:560px){.city-choices{grid-template-columns:1fr}.city-chooser-card{padding:27px 20px}}
+</style>
 </head>
 <body>
+<section class="city-chooser" id="city-chooser" aria-label="Choose a City of Ale guide"><div class="city-chooser-card"><div style="font-size:34px">🍺</div><h1>Choose your city</h1><p>Start your City of Ale guide in the city you are exploring.</p><div class="city-choices"><a class="city-choice" href="#norwich" id="choose-norwich"><span>ENGLAND</span><strong>Norwich</strong><span>Original pub guide, map, crawl planner and games.</span></a><a class="city-choice" href="dublin.html"><span>IRELAND</span><strong>🍀 Dublin</strong><span>Irish pub guide with shared ratings and photos.</span></a></div></div></section>
 
 <!-- ═══ AUTH SCREEN ════════════════════════════════════════ -->
 <div id="auth-screen" style="display:none">
@@ -3432,5 +3436,6 @@ async function adminUpdateSuggestion(id, status) {
 // INIT — auth-driven (see AUTH_JS above for boot logic)
 // ═══════════════════════════════════════════════════════════════
 </script>
+<script>document.getElementById('choose-norwich')?.addEventListener('click',e=>{e.preventDefault();document.getElementById('city-chooser')?.classList.add('hidden');history.replaceState(null,'',location.pathname);});</script>
 </body>
 </html>

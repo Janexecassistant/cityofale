@@ -1,61 +1,16 @@
 {
   "version": 2,
   "builds": [
-    {
-      "src": "index.html",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "manifest.json",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "icon-*.png",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "audio/**",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "pub-sling-madness/**",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "split-the-g/**",
-      "use": "@vercel/static"
-    }
+    { "src": "index.html", "use": "@vercel/static" },
+    { "src": "dublin.html", "use": "@vercel/static" },
+    { "src": "manifest.json", "use": "@vercel/static" },
+    { "src": "icon-*.png", "use": "@vercel/static" },
+    { "src": "audio/**", "use": "@vercel/static" },
+    { "src": "pub-sling-madness/**", "use": "@vercel/static" },
+    { "src": "split-the-g/**", "use": "@vercel/static" }
   ],
   "routes": [
-    {
-      "handle": "filesystem"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "X-Frame-Options",
-          "value": "SAMEORIGIN"
-        },
-        {
-          "key": "Referrer-Policy",
-          "value": "strict-origin-when-cross-origin"
-        },
-        {
-          "key": "Permissions-Policy",
-          "value": "geolocation=(self)"
-        }
-      ]
-    }
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
