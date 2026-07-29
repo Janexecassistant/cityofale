@@ -4,6 +4,7 @@
     { "src": "index.html", "use": "@vercel/static" },
     { "src": "dublin.html", "use": "@vercel/static" },
     { "src": "dublin-map-data.js", "use": "@vercel/static" },
+    { "src": "assets/**", "use": "@vercel/static" },
     { "src": "manifest.json", "use": "@vercel/static" },
     { "src": "icon-*.png", "use": "@vercel/static" },
     { "src": "audio/**", "use": "@vercel/static" },
@@ -11,6 +12,14 @@
     { "src": "split-the-g/**", "use": "@vercel/static" }
   ],
   "routes": [
+    {
+      "src": "/assets/dublin-social-card.png",
+      "headers": {
+        "Content-Type": "image/png",
+        "Cache-Control": "public, max-age=3600, s-maxage=86400"
+      },
+      "continue": true
+    },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]
