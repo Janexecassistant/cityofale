@@ -13,6 +13,14 @@
   ],
   "routes": [
     {
+      "src": "/assets/dublin-social-card-v2.jpg",
+      "headers": {
+        "Content-Type": "image/jpeg",
+        "Cache-Control": "public, max-age=3600, s-maxage=86400"
+      },
+      "continue": true
+    },
+    {
       "src": "/assets/dublin-social-card.png",
       "headers": {
         "Content-Type": "image/png",
