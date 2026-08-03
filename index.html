@@ -3233,12 +3233,19 @@ async function renderAdmin() {
     const totalPhotos = users.reduce((s, u) => s + Number(u.photos_uploaded), 0);
     const activeUsers = users.filter(u => Number(u.pubs_visited) > 0 || Number(u.pubs_rated) > 0).length;
 
+    const { data: dublinActivity, error: da } = await _sb.rpc('get_dublin_activity_summary');
+    const activity = da ? null : dublinActivity?.[0];
+    const activityLabel = activity?.latest_open_at ? new Date(activity.latest_open_at).toLocaleString() : 'No activity yet';
     document.getElementById('admin-stats').innerHTML = `
       <div class="stat-card"><div class="stat-label">Users</div><div class="stat-value">${totalUsers}</div></div>
       <div class="stat-card"><div class="stat-label">Active Users</div><div class="stat-value">${activeUsers}</div></div>
       <div class="stat-card accent"><div class="stat-label">Total Visits</div><div class="stat-value">${totalVisits}</div></div>
       <div class="stat-card"><div class="stat-label">Ratings</div><div class="stat-value">${totalRatings}</div></div>
       <div class="stat-card"><div class="stat-label">Photos</div><div class="stat-value">${totalPhotos}</div></div>
+      <div class="stat-card"><div class="stat-label">Dublin Page Opens</div><div class="stat-value">${activity ? activity.page_opens : '—'}</div></div>
+      <div class="stat-card"><div class="stat-label">Dublin Visitors</div><div class="stat-value">${activity ? activity.unique_visitors : '—'}</div></div>
+      <div class="stat-card"><div class="stat-label">Dublin Opens, 24h</div><div class="stat-value">${activity ? activity.opens_last_24_hours : '—'}</div></div>
+      <div class="stat-card"><div class="stat-label">Latest Dublin Open</div><div class="stat-value" style="font-size:12px">${activity ? activityLabel : 'Tracking setup needed'}</div></div>
     `;
 
     document.getElementById('admin-users-body').innerHTML = users.map(u => `
